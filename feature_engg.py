@@ -82,16 +82,17 @@ from os import listdir
 from os.path import isfile, join
 
 from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features,Lasso,chi_square
+from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
 
 
 import warnings
 warnings.filterwarnings("ignore")
-data_files = ['preeclampsia_final']
+data_files = data_files
 
-project_folder = '/data/srs/zipcode/'
-data_folder = project_folder + 'datafile/'
-train_folder = project_folder + 'train/'
-test_folder = project_folder + 'test/'
+project_folder = project_folder
+data_folder = data_folder
+train_folder = train_folder
+test_folder = test_folder
 
 repeat_flag = 'Y'
 hyperparameter_catalog = {
@@ -108,7 +109,7 @@ hyperparameter_catalog = {
 }
 
 rp_list = [['n','n'], ['y', 'n'], ['n', 'y']]
-
+label_col,pt_col = label_col,pt_col
 
 data_folder = 'bootstraps_sv2/'
 
@@ -179,7 +180,7 @@ for file_num in range(num_files):
     print("method is",method)
 
     file_name = file_list[file_num]
-    X,y,df_dataset, cv = get_dataset(data_folder+train_or_test+file_name,file_num)
+    X,y,df_dataset, cv = get_dataset(data_folder+train_or_test+file_name,file_num,label_col,pt_col)
 
     if selection_method == 1:
         k = 'NA'
@@ -193,7 +194,7 @@ for file_num in range(num_files):
             if correlation_th != 'Not applicable':
 
                 correlation_th = np.round(correlation_th,1)
-                feats = statistical_filter(df_dataset,X,y, correlation_th)
+                feats = statistical_filter(df_dataset,X,y, correlation_th,label_col,pt_col)
 
                 feature_list_dict[file_name[:-4]] = feats
 
@@ -228,7 +229,7 @@ for file_num in range(num_files):
 
     elif selection_method == 4:
         k = 10
-        feats = RFE_features(data_folder+train_or_test+file_name, file_num, k)
+        feats = RFE_features(data_folder+train_or_test+file_name, file_num, k,label_col,pt_col,)
         feature_list_dict[file_name[:-4]] = feats
         print("featurs selected by rfe are",feats)
         print('Processed file ' + str(file_num + 1))

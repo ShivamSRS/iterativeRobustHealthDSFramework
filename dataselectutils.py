@@ -82,16 +82,17 @@ import time
 from os import listdir
 from os.path import isfile, join
 
+from arguments import data_files,test_folder,train_folder,project_folder,data_folder
 
 
 import warnings
 warnings.filterwarnings("ignore")
 data_files = ['preeclampsia_final']
 
-project_folder = '/data/srs/zipcode/'
-data_folder = project_folder + 'datafile/'
-train_folder = project_folder + 'train/'
-test_folder = project_folder + 'test/'
+project_folder = project_folder
+data_folder = data_folder
+train_folder =train_folder
+test_folder =test_folder
 
 repeat_flag = 'Y'
 hyperparameter_catalog = {
@@ -108,15 +109,16 @@ hyperparameter_catalog = {
 }
 
 from scipy.stats import ks_2samp
-def statistical_filter(df,X,y, corr_th):
+def statistical_filter(df,X,y, corr_th,label_col,pt_col):
     #FOR PERFORMING STATISTICAL FEATURE SELECTION
     
     df_ks= pd.DataFrame(columns =('Features', 'KS score', 'p value'))
     def ks(feat1,feat2):
+        # print(feat1,feat2)
         d,p_val = ks_2samp(feat1,feat2)
         return d,p_val
     
-    cohort = df.groupby(['Readmitted (Y/N)'])
+    cohort = df.groupby([label_col])
     cols = X.columns
     for feat in cols:
         d,p_val = ks(cohort.get_group(0)[feat],cohort.get_group(1)[feat])
@@ -374,7 +376,7 @@ def permutation_importance_features(data_folder, file_num, k, hyperparams='RF'):
 
 
 
-def RFE_features(data_folder, file_num, k, hyperparams = 'RF'):
+def RFE_features(data_folder, file_num, k,label_col,pt_col, hyperparams = 'RF'):
 
     filtered_col_list = []
     fold_perf = []
@@ -407,7 +409,7 @@ def RFE_features(data_folder, file_num, k, hyperparams = 'RF'):
 
     finalResult = pd.DataFrame()
 
-    X,y,df_dataset, cv = get_dataset(data_folder,file_num)
+    X,y,df_dataset, cv = get_dataset(data_folder,file_num,label_col,pt_col,)
 
     print(X.columns.tolist())
 
@@ -436,7 +438,7 @@ def RFE_features(data_folder, file_num, k, hyperparams = 'RF'):
         return rfe_features
 
 
-def get_dataset(data_file,file_num):
+def get_dataset(data_file,file_num,label_col,pt_col):
     #Processing input file for ingestion into training functions
 
 
@@ -467,11 +469,11 @@ def get_dataset(data_file,file_num):
         val_idxs = []
         train_idxs = []
         for p in range(len(fold)):
-            idx = df.index[(df['Mutated MRN'] == fold[p])].tolist()
+            idx = df.index[(df[pt_col] == fold[p])].tolist()
             val_idxs+=idx
         #print(val_idxs)
         for p in range(len(train_pigs)):
-            idx = df.index[(df['Mutated MRN'] == train_pigs[p])].tolist()
+            idx = df.index[(df[pt_col] == train_pigs[p])].tolist()
             train_idxs+=idx
         #print(train_idxs)
         k_folds.append((np.array(train_idxs), np.array(val_idxs)))
@@ -495,14 +497,14 @@ def get_dataset(data_file,file_num):
         X = X.drop(['Unnamed: 0'], axis =1)
     if 'Unnamed: 0.1' in X.columns.tolist():
         X = X.drop(['Unnamed: 0.1'], axis =1)
-    if 'Mutated MRN' in X.columns.tolist():
-        X = X.drop(['Mutated MRN'], axis =1)
-    if 'Readmitted (Y/N)' in X.columns.tolist():
-        X = X.drop(['Readmitted (Y/N)'], axis =1)
+    if pt_col in X.columns.tolist():
+        X = X.drop([pt_col], axis =1)
+    if label_col in X.columns.tolist():
+        X = X.drop([label_col], axis =1)
     if 'ZIPCODE' in X.columns.tolist():
         X = X.drop(['ZIPCODE'], axis =1)
 
-    y = df['Readmitted (Y/N)']
+    y = df[label_col]
 
     if only_comm == 'y':
         #X = df[comm_feats_90]
@@ -510,7 +512,7 @@ def get_dataset(data_file,file_num):
 
     return X, y, df, k_folds
 
-def get_test_dataset(data_file):
+def get_test_dataset(data_file,label_col,pt_col):
     #Processing input file for ingestion into training functions
 
 
@@ -527,14 +529,14 @@ def get_test_dataset(data_file):
     
     if 'Unnamed: 0.1' in X.columns.tolist():
         X = X.drop(['Unnamed: 0.1'], axis =1)
-    if 'Mutated MRN' in X.columns.tolist():
-        X = X.drop(['Mutated MRN'], axis =1)
-    if 'Readmitted (Y/N)' in X.columns.tolist():
-        X = X.drop(['Readmitted (Y/N)'], axis =1)
+    if pt_col in X.columns.tolist():
+        X = X.drop([pt_col], axis =1)
+    if label_col in X.columns.tolist():
+        X = X.drop([label_col], axis =1)
     if 'ZIPCODE' in X.columns.tolist():
         X = X.drop(['ZIPCODE'], axis =1)
 
-    y = df['Readmitted (Y/N)']
+    y = df[label_col]
 
     if only_comm == 'y':
         #X = df[comm_feats_90]
@@ -546,7 +548,7 @@ def get_test_dataset(data_file):
 rp_list = [['n','n'], ['y', 'n'], ['n', 'y']]
 
 
-data_folder = 'bootstraps_sv2/'
+# data_folder = 'bootstraps_sv2/'
 
 filtered_col_list = []
 fold_perf = []

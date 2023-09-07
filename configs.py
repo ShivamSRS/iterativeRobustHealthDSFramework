@@ -1,5 +1,5 @@
-feature_selection_method = 'mutual_information'
-use_features='N'
+feature_selection_method = 'RFE'
+use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
 else:
@@ -8,7 +8,7 @@ else:
 feature_import_path = 'pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 algorithm = 'RF'
 num_splits = 100
-prefered_columns =['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
+prefered_columns =[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
 
 
 mutual_info_cols = ['POS_DIST_OBSTETRICS_ZP' ,'ACS_PCT_MEDICAID_ANY_BELOW64_ZC','ACS_PCT_ENGLISH_ZC','ACS_TOT_OWN_CHILD_BELOW17_ZC','ACS_TOT_POP_US_ABOVE1_ZC']

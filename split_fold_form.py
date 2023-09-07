@@ -36,15 +36,12 @@ from sklearn.model_selection import RepeatedStratifiedKFold, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
 import statistics
 from sklearn.metrics import roc_auc_score
-from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
 # from mlxtend.feature_selection import ExhaustiveFeatureSelector as EFS
 from sklearn.metrics import accuracy_score as acc
 # from mlxtend.feature_selection import SequentialFeatureSelector as sfs
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import average_precision_score
-from imblearn.pipeline import Pipeline, make_pipeline
-from imblearn.over_sampling import SMOTE 
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 import numpy as np
@@ -61,9 +58,8 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import roc_auc_score,  make_scorer, precision_score, recall_score, \
 average_precision_score, accuracy_score, average_precision_score
 from sklearn.metrics import roc_curve, auc  , precision_recall_curve, confusion_matrix
-import matplotlib.pyplot as plt
 import random
-import seaborn as sns
+
 import joblib
 from sklearn import metrics
 from scipy.stats import ks_2samp
@@ -85,29 +81,25 @@ import ast
 from random import sample
 from configs import num_splits
 from argparse import ArgumentParser
-
+from arguments import data_files,test_folder,train_folder,project_folder,data_folder
 import warnings
 warnings.filterwarnings("ignore")
 
-data_files = ['preeclampsia_final']
+data_files = data_files
 
-project_folder = '/data/srs/zipcode/'
-data_folder = project_folder + 'datafile/'
-train_folder = project_folder + 'train/'
-test_folder = project_folder + 'test/'
+project_folder = project_folder
+data_folder = data_folder
+train_folder =train_folder
+test_folder =test_folder
 repeat_flag = 'Y'
 number_of_splits = num_splits
 split_ratio = 0.7
 
-split_summary_df = pd.DataFrame()
-train_file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
-test_file_list = [f for f in listdir(test_folder) if isfile(join(test_folder, f))]
 
 parser = ArgumentParser()
 
 parser.add_argument("--race",default=True)
-parser.add_argument("--original",default=False)
-parser.add_argument("--adi_only",default=False)
+
 
 
 args = parser.parse_args()
@@ -118,34 +110,48 @@ if not os.path.isdir(train_folder):
 if not os.path.isdir(test_folder):
     os.makedirs(test_folder)
 
-main_df = pd.read_csv(data_folder+data_files[0]+'.csv')
+main_df = pd.read_csv(data_folder+data_files[0])
 
 
 
-# df_list = [main_df]
+df_list = [pd.read_csv(data_folder+i) for i in data_files]
 
 
 
 all_data = main_df
 racial_features = ['AA', 'Asian', 'Declined', 'Hispanic', 'Middle Eastern', 'Mixed (Asian, White)', 'Mixed (Asian, White, AA)', 'Other', 'White']
 
-if args.original and (args.adi_only==False):
-    all_data = all_data.loc[:,all_data.columns[:51]]
 
-if args.adi_only:
-    all_data = all_data.loc[:,all_data.columns[:52]]
 if args.race is False:
     all_data = all_data[all_data.columns[~all_data.columns.isin(racial_features)]]
-all_data["Delta BMI"] = all_data['BMI close to delivery'] - all_data['BMI prepregnancy']
 
 print(all_data.columns)
 # exit()
-remove_n = abs(len(all_data[all_data['Readmitted (Y/N)']==0])-len(all_data[all_data['Readmitted (Y/N)']==1]))
-drop_indices = np.random.choice(all_data[all_data['Readmitted (Y/N)']==0].index, remove_n, replace=False)
-all_data = all_data.drop(drop_indices)
-all_data=all_data.reset_index(drop=True)
+# remove_n = abs(len(all_data[all_data['ards_flag']==0])-len(all_data[all_data['ards_flag']==1]))
+# drop_indices = np.random.choice(all_data[all_data['ards_flag']==0].index, remove_n, replace=False)
+# all_data = all_data.drop(drop_indices)
+# all_data=all_data.reset_index(drop=True)
 
+label_col = 'ards_flag'
+pt_col = 'deidentified_study_id'
+total_pts = []
+for df_list_member in df_list:
+    total_pts += df_list_member[pt_col].tolist()
 
+all_pts = list(set(total_pts))
+if len(data_files)>1:
+    main_df = df_list[0]
+    for dfs in df_list:
+        main_df = main_df.merge(dfs, on='pt_col', how='inner')
+print(all_pts)
+def one_hot_encode(df,feat):
+    # Get one hot encoding of columns B
+    one_hot = pd.get_dummies(df[feat],prefix=feat)
+    # Drop column B as it is now encoded
+    df = df.drop(feat,axis = 1)
+    # Join the encoded df
+    df = df.join(one_hot)
+    return df
 for split in range(number_of_splits):
     
     print('Creating split ' + str(split+1))
@@ -153,15 +159,24 @@ for split in range(number_of_splits):
     
     while repeat_flag == 'Y':
         
-        
-        pt_indices = np.random.choice(len(all_data), replace = False, 
+        #for binary classificaiton only 
+        # all_pts_0_indices = list(main_df[main_df[label_col]==0].index)
+        # all_pts_1_indices = list(main_df[main_df[label_col]==1].index)
+        # print(all_pts_0,all_pts_1,)
+        # exit()
+        pt_indices = np.random.choice(len(all_pts), replace = False, 
                                          size = int(split_ratio*len(all_data)))
         test = pd.DataFrame(columns=all_data.columns)
         #197
-        
-        
-        for i in all_data['Readmitted (Y/N)'].unique():
-            val_1  = all_data[all_data['Readmitted (Y/N)']==i].take(np.random.permutation(len(all_data[all_data['Readmitted (Y/N)']==i]))[:int((1-split_ratio)*len(all_data[all_data['Readmitted (Y/N)']==i]))])
+
+        full = set(range(0,len(all_pts)))
+        excluded_pts = full - set(pt_indices)
+
+        train_pts = [all_pts[i] for i in pt_indices]
+        test_pts = [all_pts[i] for i in excluded_pts]
+
+        for i in all_data['ards_flag'].unique():
+            val_1  = all_data[all_data['ards_flag']==i].take(np.random.permutation(len(all_data[all_data['ards_flag']==i]))[:int((1-split_ratio)*len(all_data[all_data['ards_flag']==i]))])
             test = pd.concat([test,val_1])
         
         # train_pts = [all_data[i] for i in pt_indices]
@@ -189,11 +204,11 @@ for split in range(number_of_splits):
         # test = test.drop('Unnamed: 0',axis=1)
         # print(train,test,sep="\n####\n")
         # exit()
-        print(len(test[test['Readmitted (Y/N)']==1]),len(test[test['Readmitted (Y/N)']==0]),len(pt_indices))
-        # print(((train[train['Readmitted (Y/N)']==1].shape[0]) - (train[train['Readmitted (Y/N)']==0].shape[0]))/0.20*train.shape[0])
+        print(len(test[test['ards_flag']==1]),len(test[test['ards_flag']==0]),len(pt_indices))
+        # print(((train[train['ards_flag']==1].shape[0]) - (train[train['ards_flag']==0].shape[0]))/0.20*train.shape[0])
         # exit()
-        if abs((train[train['Readmitted (Y/N)']==1].shape[0]) - \
-               (train[train['Readmitted (Y/N)']==0].shape[0])) <= 0.20*train.shape[0]:
+        if abs((train[train['ards_flag']==1].shape[0]) - \
+               (train[train['ards_flag']==0].shape[0])) <= 0.20*train.shape[0]:
             
             repeat_flag = 'N'
         else:
@@ -203,10 +218,15 @@ for split in range(number_of_splits):
     
     repeat_flag = 'Y'
 
-    train_filename = 'PZ_train_'+str(split+1)+'.csv'
-    test_filename = 'PZ_test_'+str(split+1)+'.csv'
-    train.to_csv(train_folder+train_filename,index=False)
-    test.to_csv(test_folder+test_filename,index=False)
+    # train = one_hot_encode(train,'tobacco_user')
+    # train = one_hot_encode(train,'smoking_usage')
+    # test = one_hot_encode(test,'tobacco_user')
+    # test = one_hot_encode(test,'smoking_usage')
+
+    train_filename = 'EHR_train_'+str(split+1)+'.csv'
+    test_filename = 'EHR_test_'+str(split+1)+'.csv'
+    # train.to_csv(train_folder+train_filename,index=False)
+    # test.to_csv(test_folder+test_filename,index=False)
 
     print('Saved split ' + str(split+1))
     print(str(round(100*(split+1)/number_of_splits, 2)) + '% completed')
@@ -215,6 +235,9 @@ for split in range(number_of_splits):
     print('')
     
 print('Split formation complete')    
+split_summary_df = pd.DataFrame()
+train_file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
+test_file_list = [f for f in listdir(test_folder) if isfile(join(test_folder, f))]
 
 
 ###############################               SUMMARIZING               ###############################
@@ -233,25 +256,25 @@ for file_num in range(len(train_file_list)):
     
     test_pigs+=len(test_data)
     vals = []
-    print
+    
     # vals.append(len(list(set(train_data))))
     # vals.append(len(list(set(test_data))))
                 
     vals.append(['Total', 
-                 train_data[train_data['Readmitted (Y/N)']==1].shape[0],
-                 train_data[train_data['Readmitted (Y/N)']==0].shape[0],
-                 test_data[test_data['Readmitted (Y/N)']==1].shape[0],
-                 test_data[test_data['Readmitted (Y/N)']==0].shape[0],
+                 train_data[train_data['ards_flag']==1].shape[0],
+                 train_data[train_data['ards_flag']==0].shape[0],
+                 test_data[test_data['ards_flag']==1].shape[0],
+                 test_data[test_data['ards_flag']==0].shape[0],
                  train_pigs,
                  test_pigs])
     print(vals)
     final_df = pd.DataFrame(vals, columns = ['sr no','train 1s', 'train 0s', 'test 1s', 'test 0s',
-                                  'train pigs', 'test pigs'])
+                                  'train pts', 'test pts'])
     final_df['split'] = [file_num+1]*final_df.shape[0]
     final_df['train_file'] = train_data_file
     final_df['test_file'] = test_data_file
     split_summary_df = pd.concat([split_summary_df, final_df])
-split_summary_df.to_csv(project_folder + 'split_formation_summary.csv', index = False)
+# split_summary_df.to_csv(project_folder + 'split_formation_summary.csv', index = False)
 print('Split formation summarization complete')
 # exit()
 ###############################               FOLD FORMATION               ###############################
@@ -264,7 +287,7 @@ for file_num in range(len(train_file_list)):
     train_df = pd.read_csv(train_folder+train_file_list[file_num])
     # ds = train_dftolist()
     # pig = train_df.Pigs.tolist()
-    unique_pts_list = list(set(train_df['Mutated MRN']))
+    unique_pts_list = list(set(train_df[pt_col]))
     
     bolus_dict = {}
     # for p in unique_pts_list:
@@ -314,4 +337,4 @@ for file_num in range(len(train_file_list)):
     
 cols = ['filename', 'split', 'fold_1', 'fold_2', 'fold_3', 'fold_4', 'fold_5']
 fold_df = pd.DataFrame(rows, columns = cols)
-fold_df.to_csv(project_folder+'fold_information.csv', index=False)
+# fold_df.to_csv(project_folder+'fold_information.csv', index=False)

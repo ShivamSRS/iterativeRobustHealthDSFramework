@@ -100,14 +100,17 @@ label_col,pt_col = label_col,pt_col
 import warnings
 warnings.filterwarnings("ignore")
 
-validation = 'test'
+validation = 'train'
 from configs import num_splits
 num_files = num_splits
 data_folder = ''
 train_or_test = validation+'/'
-results_path = 'results/'
+results_path = 'results_VAL/'
+import joblib
 
-
+# meow = joblib.load(open('/data1/srsrai/ehrdata/algorithm_selection/RF/statistical_feature_selection/model_EHR_train_100/gridsearch_classification_performance_EHR_train_100.pkl', "rb"))
+# # print(meow)
+# # exit()
 file_list = [f for f in listdir(data_folder+train_or_test) if isfile(join(data_folder+train_or_test, f))]
 
 filtered_col_list = []
@@ -147,7 +150,10 @@ for file_num in range(num_files):
     
     
     data_file = file_list[file_num]
-    X,y,test_df = get_test_dataset(data_folder+train_or_test+data_file,label_col,pt_col)
+    X,y,test_df, cv = get_dataset(data_folder+train_or_test+data_file,file_num,label_col,pt_col)
+
+    print(cv,X.shape,len(cv),len(cv[0]),len(cv[1][0]),X.loc[cv[0][-1],:].shape)
+    exit()
     if 'Unnamed: 0' in test_df.columns.tolist():
         test_df = test_df.drop(['Unnamed: 0'], axis =1)
     if 'Unnamed: 0.1' in test_df.columns.tolist():
@@ -185,10 +191,10 @@ for file_num in range(num_files):
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)
     X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
-    # X=X.fillna(method="ffill")
-    # X=X.fillna(method="bfill")
-    Y_pred = saved_model.predict(X)
-    probas_=saved_model.predict_proba(X)
+    X=X.fillna(method="ffill")
+    X=X.fillna(method="bfill")
+    Y_pred = saved_model.predict(X.loc[cv[0][-1],:])
+    probas_=saved_model.predict_proba(X.loc[cv[0][-1],:])
     
     if algorithm=='RF' or algorithm=='XGB':
         feat_importances = pd.Series(saved_model['classification_model'].feature_importances_, index=X.columns)
