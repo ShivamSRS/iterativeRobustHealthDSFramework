@@ -87,7 +87,7 @@ from arguments import data_files,test_folder,train_folder,project_folder,data_fo
 
 import warnings
 warnings.filterwarnings("ignore")
-data_files = ['preeclampsia_final']
+data_files = data_files
 
 project_folder = project_folder
 data_folder = data_folder
@@ -95,19 +95,31 @@ train_folder =train_folder
 test_folder =test_folder
 
 repeat_flag = 'Y'
+hyperparameter_catalog_RFE = {
+
+    'RF': {
+        'bootstrap': [True],
+        'max_depth': [10], # maximum depth of the tree
+        'max_features': ['log2'], # maximum number of features to use at each split
+        # 'min_samples_leaf': [5,10], # minimum number of samples to split a node
+        'min_samples_split': [8],#range(8,10,2),
+        'n_estimators': [100], # number of trees
+        'criterion' : ['gini','entropy']  # criterion for evaluating a split
+    }
+}
+
 hyperparameter_catalog = {
 
     'RF': {
         'bootstrap': [True],
         'max_depth': [2, 5, 10], # maximum depth of the tree
-        'max_features': ['auto','sqrt'], # maximum number of features to use at each split
+        'max_features': ['log2','sqrt'], # maximum number of features to use at each split
         'min_samples_leaf': [5,10], # minimum number of samples to split a node
         'min_samples_split': range(2,10,2),
         'n_estimators': [100,200, 500], # number of trees
         'criterion' : ['gini','entropy']  # criterion for evaluating a split
     }
 }
-
 from scipy.stats import ks_2samp
 def statistical_filter(df,X,y, corr_th,label_col,pt_col):
     #FOR PERFORMING STATISTICAL FEATURE SELECTION
@@ -201,10 +213,24 @@ def chi_square(df,X,y,with_corr=False,corr_th=0.9):
     return df_corrFiltered.columns.tolist()#,correlated_features,df_ks_sorted,X_KS_filtered
 
 def Lasso(df,X,y):
-    lsvc = LinearSVC(C=0.01, penalty="l1", dual=False).fit(X, y)
+    lsvc = LogisticRegression(C=0.5, penalty='l1', solver='liblinear', random_state=10).fit(X, y)
+    # lsvc = LinearSVC(C=0.01, penalty="l1", dual=False).fit(X, y)
     model = SelectFromModel(lsvc, prefit=True)
-    print(X.columns[model.get_support()])
+    print(X.columns[model.get_support()],"number of features selected are : ",len(X.columns[model.get_support()]),sep="\n")
     return list(X.columns[model.get_support()])
+
+def RandomForestFeatSelection(df,X,y):
+    rf = RandomForestClassifier().fit(X, y)
+    model = SelectFromModel(rf,threshold=0.25, prefit=True)
+    feat_dict = {i : j for i,j in zip(X.columns,model.estimator.feature_importances_) }
+    sortedFeats = sorted(feat_dict.keys(), key=lambda k: feat_dict[k], reverse=True)
+    # print(feat_dict,lsn(feat_dict))
+    top25th_value = int(len(feat_dict)*0.25)
+    # print(top25th_value,sortedFeats[:top25th_value], max(zip(feat_dict.values(), feat_dict.keys()))[1],feat_dict[sortedFeats[:top25th_value][0]])
+    # exit()
+    # print(sortedFeats[:top25th_value])
+    # print(X.columns[model.get_support()])
+    return sortedFeats[:top25th_value]#list(X.columns[model.get_support()])
 
 def mutual_info(X,y,data, k):
     # Top k features according to mutual information score
@@ -394,7 +420,7 @@ def RFE_features(data_folder, file_num, k,label_col,pt_col, hyperparams = 'RF'):
         os.makedirs(All_file_pickle_folder)
 
 
-    param_grid = hyperparameter_catalog[hyperparams]
+    param_grid = hyperparameter_catalog_RFE[hyperparams]
     hyperparameters = {'estimator__' + key: param_grid[key] for key in param_grid}
 
     #scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True)}

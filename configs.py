@@ -1,4 +1,4 @@
-feature_selection_method = 'RFE'
+feature_selection_method = 'Lasso'
 use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
@@ -21,4 +21,6 @@ use_prefered_cols = False
     'permutation_importance': 3,
     'RFE': 4,
     'Lasso' : 5,
+
+    'RandomForestFeatSelection':7
 }"""

@@ -52,6 +52,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import random
 import os
+from sklearn.metrics import roc_curve, auc
 random_state = np.random.RandomState(42)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_curve, auc
@@ -214,9 +215,9 @@ fold_perf = []
 import argparse
 parser = argparse.ArgumentParser()
 
-# parser.add_argument("--use_features",default='N')
-# parser.add_argument("--featselection",default='SFS')
-# args = parser.parse_args()
+parser.add_argument("--use_features",default='N')
+parser.add_argument("--featselection",default='SFS')
+args = parser.parse_args()
 
 from configs import feature_selection_method,feature_import_path,use_prefered_cols,prefered_columns
 
@@ -235,16 +236,22 @@ forcols = pd.read_excel("/data1/srsrai/ehrdata/algorithm_selection/RF/statistica
 fullmodels_cv = pd.DataFrame(columns = forcols.columns)
 bestmodels_cv = pd.DataFrame(columns =resultdfcols+classification_metrics_ci)
 
-# if args.featselection!='SFS':
-#     feature_selection_method = 'RFE'
-# else:
-#     feature_selection_method = "statistical_feature_selection"
-print(feature_selection_method)
+nestDF = pd.DataFrame(columns=["accuracy","roc_auc","prc_score","precision","recall","accuracy 95% CI","roc_auc 95% CI","prc_score 95% CI","precision 95% CI","recall 95% CI"])
+
+from sklearn.model_selection import KFold
+
+if args.featselection!='SFS':
+    feature_selection_method = 'RFE'
+else:
+    feature_selection_method = "statistical_feature_selection"
+print(feature_selection_method,args.featselection)
 for file_num in range(num_files):
     print('')
     # print(file_num)
     # if file_num==4:
     #     break
+
+    outer_dic = {"accuracy":[],"roc_auc":[],"prc_score":[],"precision":[],"recall":[]}
 
     start_time = time.time()
     
@@ -273,147 +280,153 @@ for file_num in range(num_files):
     
     X,y,df_dataset, cv = get_dataset(data_folder+train_or_test+data_file,file_num,label_col,pt_col)
 
+    cv_outer = KFold(n_splits=10, shuffle=True, random_state=1)
 
-    
-    if import_feature_list == 'Y':
-        feature_dict = joblib.load(feature_import_path)
-        try:
-            selected_features = feature_dict[data_file[:-4]]
-        except:
-            print("probably key error passing all features instead")
-            selected_features = X.columns
+    for train_ix, test_ix in cv_outer.split(X):
         
-        if selected_features==[]:
-            print("no feature was selected, passing whole data instead")
-            selected_features = X.columns
-        if use_prefered_cols:
-            selected_features = prefered_columns
-        print("selected features are ",len(selected_features),selected_features)
-        X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]
-    column_list =[]
-    column_list.append(X.columns.tolist())
-    print(column_list)
-    filtered_col_list.append(X.columns.tolist())
+        if import_feature_list == 'Y':
+            feature_dict = joblib.load(feature_import_path)
+            try:
+                selected_features = feature_dict[data_file[:-4]]
+            except:
+                print("probably key error passing all features instead")
+                selected_features = X.columns
+            
+            if selected_features==[]:
+                print("no feature was selected, passing whole data instead")
+                selected_features = X.columns
+            if use_prefered_cols:
+                selected_features = prefered_columns
+            print("selected features are ",len(selected_features),selected_features)
+            X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]
+        column_list =[]
+        column_list.append(X.columns.tolist())
+        print(column_list)
+        filtered_col_list.append(X.columns.tolist())
+
+        X_train, X_test = X.loc[train_ix, :], X.loc[test_ix, :]
+        print("lenght of traiining set is and testing set is",len(X_train),len(X_test))
+        y_train, y_test = y.loc[train_ix], y.loc[test_ix]   
+        inner_cv = KFold(n_splits=5, shuffle=True, random_state=1)
+        # print(y_test.values,type(y_test.values))
+
+        if algorithm_no == 1:
+            classification_model=RandomForestClassifier(random_state=1)
+        elif algorithm_no == 2:
+            classification_model=GradientBoostingClassifier(random_state=1)
+        elif algorithm_no == 3:
+            classification_model=LogisticRegression()
+        elif algorithm_no == 4:
+            classification_model=SVC(probability=True, random_state=1)
+        
+        
+        noimb_pipeline = Pipeline([('classification_model', classification_model)])
+        
+        
+        clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
+        import time
+        # startfit = time.time()
+        clf.fit(X_train, y_train)
+        
+        # endfit = time.time()
+        # print(endfit-startfit,"fitting took this much time")
+        # print(clf.best_estimator_)
+        print("BEst results",clf.best_score_,"index",clf.best_index_,"best params",clf.best_params_)
+        fold_perf.append(clf.cv_results_)
+        
+        
+        results_df = pd.DataFrame(clf.cv_results_)
+        results_df = results_df.sort_values(by=["rank_test_roc_auc"])
+        results_df = results_df.set_index(
+            results_df["params"].apply(lambda x: "_".join(str(val) for val in x.values()))
+        ).rename_axis("kernel")
+
 
         
-    inner_cv = cv
-    
-    
-    if algorithm_no == 1:
-        classification_model=RandomForestClassifier(random_state=1)
-    elif algorithm_no == 2:
-        classification_model=GradientBoostingClassifier(random_state=1)
-    elif algorithm_no == 3:
-        classification_model=LogisticRegression()
-    elif algorithm_no == 4:
-        classification_model=SVC(probability=True, random_state=1)
-    
-    
-    noimb_pipeline = Pipeline([('classification_model', classification_model)])
-    
-    
-    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
-    import time
-    # startfit = time.time()
-    clf.fit(X, y)
-    
-    # endfit = time.time()
-    # print(endfit-startfit,"fitting took this much time")
-    # print(clf.best_estimator_)
-    # print("BEst results",clf.best_score_,"index",clf.best_index_,"best params",clf.best_params_)
-    fold_perf.append(clf.cv_results_)
-    
-     
-    results_df = pd.DataFrame(clf.cv_results_)
-    results_df = results_df.sort_values(by=["rank_test_roc_auc"])
-    results_df = results_df.set_index(
-        results_df["params"].apply(lambda x: "_".join(str(val) for val in x.values()))
-    ).rename_axis("kernel")
+        temp = results_df[results_df["params"]==clf.best_params_]
 
-    # print(inner_cv)
-    # clf.best_index_ = results_df["rank_test_roc_auc"].argmin()
-    # print(results_df["params"][clf.best_index_])
-    # from sklearn.metrics import accuracy_score,roc_auc_score,precision_score,recall_score,average_precision_score
+        tmp1 = results_df[results_df["params"]==clf.best_params_][resultdfcols].values.tolist()
+        
+        
+        # print(tmp1)
+        splitlevel = {j:["split" + str(i) + "_"+j[5:] for i in range(5) ] for j in classification_metrics}
+        # print(splitlevel) 
+        # calc1 = time.time()
 
-    
-    # noimb_pipeline.fit(X.loc[X.index[inner_cv[0][0]],:],y.loc[y.index[inner_cv[0][0]],:])
-    # noimb_pipeline.set_params(**results_df["params"][clf.best_index_])
-    # y_pred1,y_pred1_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[0][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[0][0]],:])
-    
-    # print("1",accuracy_score(y1,y_pred1),roc_auc_score(y1,y_pred1_proba))
-    # exit()
-    # y_pred2,y_pred2_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[1][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[1][0]],:])
-    # y_pred3,y_pred3_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[2][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[2][0]],:])
-    # y_pred4,y_pred4_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[3][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[3][0]],:])
-    # y_pred5,y_pred5_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[4][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[4][0]],:])
+        for metric in classification_metrics:
+            print(metric)
+            metric_ci = round(1.96*np.std(temp[splitlevel[metric]].values.tolist())/np.sqrt(len(temp[splitlevel[metric]].values.tolist())),3)
+            # print(temp[metric].values.tolist(),temp[splitlevel[metric]].values.tolist(),np.std(temp[splitlevel[metric]].values.tolist()),np.sqrt(len(temp[splitlevel[metric]].values.tolist()[0])),metric_ci)    
 
-    # y1,y2,y3,y4,y5 = y.loc[y.index[inner_cv[0][0]],:],y.loc[y.index[inner_cv[1][0]],:],y.loc[y.index[inner_cv[2][0]],:],y.loc[y.index[inner_cv[3][0]],:],y.loc[y.index[inner_cv[4][0]],:]
-    # print("1",accuracy_score(y1,y_pred1),roc_auc_score(y1,y_pred1_proba))
-    # print("2",accuracy_score(y2,y_pred2),roc_auc_score(y2,y_pred2_proba))
-    # print("3",accuracy_score(y3,y_pred3),roc_auc_score(y3,y_pred3_proba))
-    # print("4",accuracy_score(y4,y_pred4),roc_auc_score(y4,y_pred4_proba))
-    # print("5",accuracy_score(y5,y_pred5),roc_auc_score(y5,y_pred5_proba))
-    # print(results_df)
-    # print(results_df[results_df["params"]==clf.best_params_])
-    # results_df[results_df["params"]==clf.best_params_].to_excel("temp.xlsx")
-    # print(results_df.loc[clf.best_index_,:])
-    # exit()
-    
-    temp = results_df[results_df["params"]==clf.best_params_]
+            tmp1[0].append(metric_ci)
+        # endcal =time.time()
+        # print("\n\n\n\n",endcal-calc1,"calculation time ")
+        # print(tmp1)
+        # exit() 
+        tmp_bootstrap_summary = pd.DataFrame([tmp1[0]],columns=resultdfcols+classification_metrics_ci)
+        tmp_bootstrap_summary.to_excel("temp.xlsx")
+        # exit()
+        bestmodels_cv=bestmodels_cv.append(tmp_bootstrap_summary,ignore_index= True)
+        
+        # print("best model",temp[temp["params"]==clf.best_params_])
+        # print(results_df.columns)
+        # results_df.to_excel("prelimresults.xlsx")
+        # exit()
+        model_to_choose =clf.best_estimator_ 
+        # evaluate model on the hold out dataset
+        yhat = model_to_choose.predict(X_test)
+        yhat_p = model_to_choose.predict_proba(X_test)
+        yhat_p=yhat_p[:, 1]
+        y_test = y_test.values
+        accu = accuracy_score(y_test, yhat)
+        
+        roc = roc_auc_score(y_test,yhat_p)
+        lr_precision,lr_recall,_ = precision_recall_curve(y_test,yhat_p)
+        prc_auc = auc(lr_recall, lr_precision)
+        precision = precision_score(y_test, yhat)
+        recall = recall_score(y_test,yhat)
 
-    tmp1 = results_df[results_df["params"]==clf.best_params_][resultdfcols].values.tolist()
-    
-    
-    # print(tmp1)
-    splitlevel = {j:["split" + str(i) + "_"+j[5:] for i in range(5) ] for j in classification_metrics}
-    # print(splitlevel) 
-    # calc1 = time.time()
+        outer_dic["accuracy"].append(accu)
+        outer_dic["roc_auc"].append(roc)
+        outer_dic["prc_score"].append(prc_auc)
+        outer_dic["precision"].append(precision)
+        outer_dic["recall"].append(recall)
+        print("for this particular loop, test metrics are",accu,roc,prc_auc,precision,recall)
 
-    for metric in classification_metrics:
+        
+        # temppath = data_folder + 'algorithm_selection/' + algorithm + '/' + feature_selection_method 
+        bestmodels_cv.to_excel("nestedcv/bestmodels_cv.xlsx")
+        
+        fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)
+        fullmodels_cv.to_excel("nestedcv/fullbestmodels_cv.xlsx")
+        # exit()
+        # joblib.dump(model_to_choose, All_file_pickle_folder+model_file)
+        print('')
+        processing_time = (round(time.time() - start_time, 2))
+        if processing_time > 60:
+            print('Processing time for file ' + data_file + ': ' + str(round(processing_time/60, 2)) + ' minutes')
+        else:
+            print('Processing time for file ' + data_file + ': ' + str(processing_time/60) + ' seconds')
+        
+        print('')
+
+    tempdftojoin = {"accuracy":mean(outer_dic["accuracy"]),"roc_auc":mean(outer_dic["roc_auc"]),"prc_score":mean(outer_dic["prc_score"]),"precision":mean(outer_dic["precision"]),"recall":mean(outer_dic["recall"])}
+    for metric in outer_dic.keys():
+        tempdftojoin[metric+" 95% CI"] = []
         print(metric)
-        metric_ci = round(1.96*np.std(temp[splitlevel[metric]].values.tolist())/np.sqrt(len(temp[splitlevel[metric]].values.tolist())),3)
+        metric_ci = round(1.96*np.std(outer_dic[metric])/np.sqrt(len(outer_dic[metric])),3)
         # print(temp[metric].values.tolist(),temp[splitlevel[metric]].values.tolist(),np.std(temp[splitlevel[metric]].values.tolist()),np.sqrt(len(temp[splitlevel[metric]].values.tolist()[0])),metric_ci)    
 
-        tmp1[0].append(metric_ci)
-    # endcal =time.time()
-    # print("\n\n\n\n",endcal-calc1,"calculation time ")
-    # print(tmp1)
-    # exit() 
-    tmp_bootstrap_summary = pd.DataFrame([tmp1[0]],columns=resultdfcols+classification_metrics_ci)
-    tmp_bootstrap_summary.to_excel("temp.xlsx")
-    # exit()
-    bestmodels_cv=bestmodels_cv.append(tmp_bootstrap_summary,ignore_index= True)
-    
-    # print("best model",temp[temp["params"]==clf.best_params_])
-    # print(results_df.columns)
-    # results_df.to_excel("prelimresults.xlsx")
-    # exit()
-    model_to_choose =clf.best_estimator_ 
-    
-    model_file = "classification_model_"+file_list[file_num][:-4]+".pkl"
-    
-    
-    temppath = data_folder + 'algorithm_selection/' + algorithm + '/' + feature_selection_method 
-    bestmodels_cv.to_excel(temppath+"/bestmodels_cv.xlsx")
-    
-    fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)
-    fullmodels_cv.to_excel(temppath+"/fullbestmodels_cv.xlsx")
-    # exit()
-    joblib.dump(model_to_choose, All_file_pickle_folder+model_file)
-    print('')
-    processing_time = (round(time.time() - start_time, 2))
-    if processing_time > 60:
-        print('Processing time for file ' + data_file + ': ' + str(round(processing_time/60, 2)) + ' minutes')
-    else:
-        print('Processing time for file ' + data_file + ': ' + str(processing_time/60) + ' seconds')
-    
-    print('')
+        tempdftojoin[metric+" 95% CI"].append(metric_ci)
+    tempdftojoin = pd.DataFrame(tempdftojoin)
+    nestDF = nestDF.append(tempdftojoin,ignore_index=True)
+    nestDF.to_excel("nestedcv/outersplit_results.xlsx")
     print('Processed file number ' + str(file_num + 1))
     print(str(round(100*(file_num+1)/num_files, 2)) + '% complete')
     print('')
     print('-------------------------------------------------------')
-performance_file = "gridsearch_classification_performance_"+file_list[file_num][:-4]+".pkl"
-joblib.dump(fold_perf, All_file_pickle_folder+performance_file)
+# performance_file = "gridsearch_classification_performance_"+file_list[file_num][:-4]+".pkl"
+# joblib.dump(fold_perf, All_file_pickle_folder+performance_file)
 
 
 

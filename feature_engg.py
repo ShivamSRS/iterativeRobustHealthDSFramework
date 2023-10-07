@@ -81,7 +81,7 @@ import time
 from os import listdir
 from os.path import isfile, join
 
-from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features,Lasso,chi_square
+from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features,Lasso,chi_square,RandomForestFeatSelection
 from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
 
 
@@ -156,7 +156,8 @@ feature_selection_method_catalog = {
     'permutation_importance': 3,
     'RFE': 4,
     'Lasso' : 5,
-    'Chi2' : 6
+    'Chi2' : 6,
+    'RandomForestFeatSelection':7
 }
 from configs import feature_selection_method
 
@@ -239,10 +240,11 @@ for file_num in range(num_files):
         k = 10
         feats = Lasso(df_dataset,X,y)
         feature_list_dict[file_name[:-4]] = feats
-        print("featurs selected by rfe are",feats)
+        print("featurs selected by lasso are",feats)
         print('Processed file ' + str(file_num + 1))
         print(str(round(100*(file_num+1)/num_files, 2)) + '% complete')
-    
+        print(feats)
+        # exit()
     elif selection_method == 6:
         k = 10
         feats = chi_square(df_dataset,X,y,True)
@@ -250,6 +252,16 @@ for file_num in range(num_files):
         print("featurs selected by chi2 are",feats)
         print('Processed file ' + str(file_num + 1))
         print(str(round(100*(file_num+1)/num_files, 2)) + '% complete')
+
+    elif selection_method == 7:
+        k = 10
+        print("This is selection method",selection_method)
+        feats = RandomForestFeatSelection(df_dataset,X,y)
+        feature_list_dict[file_name[:-4]] = feats
+        print("featurs selected by rfe are",feats)
+        print('Processed file ' + str(file_num + 1))
+        print(str(round(100*(file_num+1)/num_files, 2)) + '% complete')
+        print(feats)
 
     print('')
     print('Processing time for file ' + str(file_num + 1) + ': ' + str((round(time.time() - start_time, 2))) + ' seconds')
