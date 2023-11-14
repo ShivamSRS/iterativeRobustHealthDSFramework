@@ -83,7 +83,7 @@ from os import listdir
 from os.path import isfile, join
 
 from arguments import data_files,test_folder,train_folder,project_folder,data_folder
-
+from configs import remove_diagnostic_features, diagnostic_features
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -531,6 +531,9 @@ def get_dataset(data_file,file_num,label_col,pt_col):
         X = X.drop(['ZIPCODE'], axis =1)
 
     y = df[label_col]
+    if remove_diagnostic_features==True:
+        X=X.drop(diagnostic_features,axis =1)
+
 
     if only_comm == 'y':
         #X = df[comm_feats_90]

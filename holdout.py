@@ -101,12 +101,14 @@ import warnings
 warnings.filterwarnings("ignore")
 
 validation = 'test'
-from configs import num_splits
+from configs import num_splits, expt_name
 num_files = num_splits
 data_folder = ''
 train_or_test = validation+'/'
-results_path = 'results/'
-
+results_path = 'results/'+ expt_name+"/"
+if not os.path.isdir(results_path):
+    print(results_path)
+    os.makedirs(results_path)
 
 file_list = [f for f in listdir(data_folder+train_or_test) if isfile(join(data_folder+train_or_test, f))]
 
@@ -164,16 +166,18 @@ for file_num in range(num_files):
             selected_features = X.columns
     else:
         selected_features = [col for col in X.columns.tolist() if col not in ignore_fields]
-    if import_feature_list == 'N':
-        pickle_folder = data_folder + 'algorithm_selection/' + \
-                        algorithm + '/all_features' + '/model_'+ data_file[:-4].replace('test','train') + '/'
-    else:
-        pickle_folder = data_folder + 'algorithm_selection/' + \
+    pickle_folder = project_folder + 'algorithm_selection/' + expt_name + '/' + \
                         algorithm + '/' + feature_selection_method + \
                         '/model_' + data_file[:-4].replace('test','train') + '/'
 
     target =15
-    saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
+    if not os.path.isdir(pickle_folder):
+        print(pickle_folder)
+        os.makedirs(pickle_folder)
+    try:
+        saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
+    except:
+        continue
     if selected_features==[]:
             print("no feature was selected, passing whole data instead")
             selected_features = X.columns
@@ -185,8 +189,8 @@ for file_num in range(num_files):
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)
     X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
-    # X=X.fillna(method="ffill")
-    # X=X.fillna(method="bfill")
+
+
     Y_pred = saved_model.predict(X)
     probas_=saved_model.predict_proba(X)
     
@@ -196,6 +200,69 @@ for file_num in range(num_files):
         print("important features are ",feat_importances.nlargest(5))
     y_test = y#test_df[label_col].values
     # x_test = test_df.drop(label_col, axis=1)
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in range(2):
+        fpr[i], tpr[i], _ = roc_curve(y_test, probas_[:, i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+    
+    # fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), probas_.ravel())
+    # roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+    from itertools import cycle
+    
+    if os.path.exists(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method) is False:
+        if os.path.exists(project_folder+"result_images/"+ expt_name+"/") is False:
+            os.mkdir(project_folder+"result_images/"+ expt_name+"/")
+        if os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm) is False:
+            os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm)
+        
+        os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method)
+    plt.plot(
+        fpr[1],
+        tpr[1],
+        color="aqua",
+        lw=2,
+        label="ROC curve of class {0} (area = {1:0.2f})".format(i, roc_auc[i]),
+    )
+
+    plt.plot([0, 1], [0, 1], "k--", lw=2)
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title(" Receiver operating characteristic")
+    plt.legend(loc="lower right")
+    if not os.path.isdir(project_folder+"result_images/"+ expt_name+"/"):
+        print(project_folder+"result_images/"+ expt_name+"/")
+        os.makedirs(project_folder+"result_images/"+ expt_name+"/")
+    plt.savefig(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method+"/"+data_file[:-4]+'_roc'+'.png')
+    plt.clf()
+    lr_precision, lr_recall, _ = precision_recall_curve(y_test, probas_[:, 1])
+    # print("FPR",fpr,"TPR",tpr)
+    # exit()
+
+    from sklearn.calibration import calibration_curve
+    import matplotlib.lines as mlines
+    import matplotlib.pyplot as plt
+
+    x_cali, y_cali=calibration_curve(y_test, probas_[:, 1])
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    plt.plot(x_cali,y_cali)
+    ref = mlines.Line2D([0, 1], [0, 1], color='black')
+    transform = ax.transAxes
+    ref.set_transform(transform)
+    ax.add_line(ref)
+    fig.suptitle('Calibration – Neptune.ai')
+    ax.set_xlabel('Predicted probability')
+    ax.set_ylabel('Fraction of positive')
+    plt.legend()
+    plt.savefig(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method+"/"+data_file[:-4]+'_calibration.png')
+    plt.clf()
+    
+    
+    
     
     fpr, tpr, thresholds = roc_curve(y_test, probas_[:, 1]) 
     lr_precision, lr_recall, _ = precision_recall_curve(y_test, probas_[:, 1])

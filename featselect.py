@@ -218,7 +218,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument("--featselection",default='SFS')
 # args = parser.parse_args()
 
-from configs import feature_selection_method,feature_import_path,use_prefered_cols,prefered_columns
+from configs import feature_selection_method,feature_import_path,use_prefered_cols,prefered_columns,expt_name
 
 import_feature_list = use_features # 'Y' to use saved features from feature selection code
 if import_feature_list == 'Y':
@@ -226,11 +226,12 @@ if import_feature_list == 'Y':
     feature_selection_method = feature_selection_method
     feature_import_path = feature_import_path #'pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 
-resultdfcols = ["params","mean_fit_time","rank_test_roc_auc","mean_test_roc_auc","split0_test_roc_auc","split1_test_roc_auc","split2_test_roc_auc","split3_test_roc_auc","split4_test_roc_auc","rank_test_accuracy","mean_test_accuracy","rank_test_prc_auc","mean_test_prc_auc","rank_test_precision","mean_test_precision","rank_test_recall","mean_test_recall","rank_test_specificity","mean_test_specificity"]
-classification_metrics = ["mean_test_roc_auc","mean_test_accuracy","mean_test_prc_auc","mean_test_precision","mean_test_recall","mean_test_specificity"]
+resultdfcols = ["params","mean_fit_time","rank_test_roc_auc_brier","mean_test_roc_auc_brier","rank_test_roc_auc","mean_test_roc_auc","split0_test_roc_auc","split1_test_roc_auc","split2_test_roc_auc","split3_test_roc_auc","split4_test_roc_auc","rank_test_accuracy","mean_test_accuracy","rank_test_prc_auc","mean_test_prc_auc","rank_test_precision","mean_test_precision","rank_test_recall","mean_test_recall","rank_test_specificity","mean_test_specificity","rank_test_brier_score","mean_test_brier_score"]
+classification_metrics = ["mean_test_roc_auc_brier","mean_test_roc_auc","mean_test_accuracy","mean_test_prc_auc","mean_test_precision","mean_test_recall","mean_test_specificity","mean_test_brier_score"]
 # trainsplit_metrics = [m[:5] + 'train'+m[10:] for m in classification_metrics]
 # "mean_train_roc_auc","split1_train_roc_auc","split2_train_roc_auc","split3_train_roc_auc","split4_train_roc_auc",
 classification_metrics_ci = [m[5:] + ' 95% CI' for m in classification_metrics]
+
 forcols = pd.read_excel("/data1/srsrai/ehrdata/algorithm_selection/RF/statistical_feature_selection/fullbestmodels_cv.xlsx")
 fullmodels_cv = pd.DataFrame(columns = forcols.columns)
 bestmodels_cv = pd.DataFrame(columns =resultdfcols+classification_metrics_ci)
@@ -249,26 +250,28 @@ for file_num in range(num_files):
     start_time = time.time()
     
     if import_feature_list == 'N':
-        All_file_pickle_folder = data_folder + 'algorithm_selection/' + \
+        All_file_pickle_folder = project_folder +  'algorithm_selection/' + expt_name + "/" + \
                                  algorithm + '/all_features' + '/model_'+file_list[file_num][:-4] + '/'
     else:
-        All_file_pickle_folder = data_folder + 'algorithm_selection/' + \
+        All_file_pickle_folder = project_folder +  '/algorithm_selection/' + expt_name + "/" + \
                                  algorithm + '/' + feature_selection_method + \
                                  '/model_' + file_list[file_num][:-4] + '/'
     data_file = file_list[file_num]
     print('Processing file ' + data_file)
     if not os.path.isdir(All_file_pickle_folder):
+        print(All_file_pickle_folder)
         os.makedirs(All_file_pickle_folder)
     
 
-    
+    from sklearn.metrics import brier_score_loss
     param_grid = hyperparameter_grid
     hyperparameters = {'classification_model__' + key: param_grid[key] for key in param_grid}
+    def roc_auc_brier_score(y_true, y_pred):
+        return roc_auc_score(y_true, y_pred)/brier_score_loss(y_true,y_pred)
     
-    
-    scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+    scoring = {'roc_auc_brier':make_scorer(roc_auc_brier_score,needs_proba= True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
-               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True)}
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
     
     
     X,y,df_dataset, cv = get_dataset(data_folder+train_or_test+data_file,file_num,label_col,pt_col)
@@ -276,16 +279,22 @@ for file_num in range(num_files):
 
     
     if import_feature_list == 'Y':
-        feature_dict = joblib.load(feature_import_path)
-        try:
-            selected_features = feature_dict[data_file[:-4]]
-        except:
-            print("probably key error passing all features instead")
-            selected_features = X.columns
+
+        if os.path.exists(feature_import_path):
+            feature_dict = joblib.load(feature_import_path)
+            try:
+                selected_features = feature_dict[data_file[:-4]]
+                if selected_features==[]:
+                    print("no feature was selected, passing whole data instead")
+                    selected_features = X.columns
+            except:
+                print("probably key error passing all features instead")
+                selected_features = X.columns
         
-        if selected_features==[]:
-            print("no feature was selected, passing whole data instead")
-            selected_features = X.columns
+            
+        else:
+            print("cant load the feature selection path")
+        
         if use_prefered_cols:
             selected_features = prefered_columns
         print("selected features are ",len(selected_features),selected_features)
@@ -315,6 +324,8 @@ for file_num in range(num_files):
     clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
     import time
     # startfit = time.time()
+    # print("This is ",X,y,sep="\n\n")
+    # exit()
     clf.fit(X, y)
     
     # endfit = time.time()
@@ -393,7 +404,7 @@ for file_num in range(num_files):
     model_file = "classification_model_"+file_list[file_num][:-4]+".pkl"
     
     
-    temppath = data_folder + 'algorithm_selection/' + algorithm + '/' + feature_selection_method 
+    temppath = data_folder + 'algorithm_selection/'+ expt_name + '/' + algorithm + '/' + feature_selection_method 
     bestmodels_cv.to_excel(temppath+"/bestmodels_cv.xlsx")
     
     fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)
