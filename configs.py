@@ -1,6 +1,6 @@
-expt_name = "CFS_300_50_True"
-feature_selection_method = expt_name
-use_features='N'
+expt_name = "30h"
+feature_selection_method = "CFS_300_50_True"
+use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
 else:

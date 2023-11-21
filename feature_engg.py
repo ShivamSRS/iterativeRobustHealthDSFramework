@@ -111,7 +111,7 @@ hyperparameter_catalog = {
 rp_list = [['n','n'], ['y', 'n'], ['n', 'y']]
 label_col,pt_col = label_col,pt_col
 
-data_folder = 'bootstraps_sv2/'
+# data_folder = 'bootstraps_sv2/'
 
 filtered_col_list = []
 fold_perf = []
@@ -165,11 +165,11 @@ method = feature_selection_method
 selection_method = feature_selection_method_catalog[method]
 from configs import num_splits
 num_files = num_splits
-data_folder = ''
-train_or_test = 'train/'
+# data_folder = ''
+# train_or_test = 'train/'
 
 
-file_list = [f for f in listdir(data_folder+train_or_test) if isfile(join(data_folder+train_or_test, f))]
+file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
 
 
 

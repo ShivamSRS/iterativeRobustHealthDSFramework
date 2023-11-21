@@ -208,8 +208,8 @@ hyperparameter_grid = hyperparameter_catalog[algorithm]
 
 
 file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
-print(file_list)
-exit()
+# print(file_list)
+# exit()
 filtered_col_list = []
 fold_perf = []
 import argparse
