@@ -124,7 +124,7 @@ racial_features = ['AA', 'Asian', 'Declined', 'Hispanic', 'Middle Eastern', 'Mix
 
 if args.race is False:
     all_data = all_data[all_data.columns[~all_data.columns.isin(racial_features)]]
-
+print(main_df)
 print(all_data.columns)
 # exit()
 # remove_n = abs(len(all_data[all_data['ards_flag']==0])-len(all_data[all_data['ards_flag']==1]))
@@ -137,6 +137,7 @@ pt_col = 'deidentified_study_id'
 total_pts = []
 for df_list_member in df_list:
     total_pts += df_list_member[pt_col].tolist()
+
 
 all_pts = list(set(total_pts))
 if len(data_files)>1:
@@ -152,10 +153,63 @@ def one_hot_encode(df,feat):
     # Join the encoded df
     df = df.join(one_hot)
     return df
+
+from arguments import fold_information_flag, fold_information_file
+if fold_information_flag ==True:
+    folds_info = pd.read_csv(fold_information_file)
+
+    for file_num in range(number_of_splits):
+
+        # print("fold infromation",folds_info)
+        folds_for_current_split = folds_info[folds_info['split']==file_num+1]
+        train_filename = folds_for_current_split['filename'].tolist()[0]
+        print(train_filename)
+        fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
+        fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
+        fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
+        fold_4_pigs = ast.literal_eval(folds_for_current_split['fold_4'].tolist()[0])
+        fold_5_pigs = ast.literal_eval(folds_for_current_split['fold_5'].tolist()[0])
+
+
+        all_fold_pigs = [np.array(fold_1_pigs),np.array(fold_2_pigs),np.array(fold_3_pigs),np.array(fold_4_pigs),np.array(fold_5_pigs)]
+        
+        test_patients = []
+
+        for i in all_pts:
+            if i not in fold_1_pigs:
+                if i not in fold_2_pigs:
+                    if i not in fold_3_pigs:
+                        if i not in fold_4_pigs:
+                            if i not in fold_5_pigs:
+                                test_patients.append(i)
+        # print(test_patients)
+        train_fold_1 = all_data[all_data[pt_col].isin(fold_1_pigs)] #all_data.take(list(indices_to_keep))
+        # print(len(train_fold_1))
+        train_fold_2 = all_data[all_data[pt_col].isin(fold_2_pigs)] #all_data.take(list(indices_to_keep))
+        # print(len(train_fold_2))
+
+        train_fold_3 = all_data[all_data[pt_col].isin(fold_3_pigs)] #all_data.take(list(indices_to_keep))
+        # print(len(train_fold_3))
+        train_fold_4 = all_data[all_data[pt_col].isin(fold_4_pigs)] #all_data.take(list(indices_to_keep))
+        # print(len(train_fold_4))
+        train_fold_5 = all_data[all_data[pt_col].isin(fold_5_pigs)] #all_data.take(list(indices_to_keep))
+        # print(len(train_fold_5),train_fold_5)
+
+        train = pd.concat([train_fold_1,train_fold_2,train_fold_3,train_fold_4,train_fold_5],ignore_index=True,axis = 0)
+        test = all_data[all_data[pt_col].isin(test_patients)] 
+        print(train_folder+train_filename)
+        train.to_csv(train_folder+train_filename,index=False)
+        test.to_csv(test_folder+train_filename.replace('train','test'),index=False)
+
+
+    exit()
+
 for split in range(number_of_splits):
     
     print('Creating split ' + str(split+1))
     print('')
+
+    
     
     while repeat_flag == 'Y':
         
