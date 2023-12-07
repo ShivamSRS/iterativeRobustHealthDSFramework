@@ -91,7 +91,7 @@ warnings.filterwarnings("ignore")
 
 
 from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features
-from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
+from arguments import time_window,data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
 
 
 repeat_flag = 'Y'
@@ -178,7 +178,6 @@ comm_feats_50 = ['std_dias_pres',
 
 from configs import num_splits
 num_files = num_splits
-data_folder = ''
 train_or_test = 'train/'
 
 
@@ -208,7 +207,7 @@ hyperparameter_grid = hyperparameter_catalog[algorithm]
 
 
 file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
-# print(file_list)
+# print(file_list,train_folder)
 # exit()
 filtered_col_list = []
 fold_perf = []
@@ -275,10 +274,10 @@ for file_num in range(num_files):
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
     
     
-    X,y,df_dataset, cv = get_dataset(data_folder+train_or_test+data_file,file_num,label_col,pt_col)
+    X,y,df_dataset, cv = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
 
 
-    
+    print()
     if import_feature_list == 'Y':
 
         if os.path.exists(feature_import_path):
@@ -405,7 +404,7 @@ for file_num in range(num_files):
     model_file = "classification_model_"+file_list[file_num][:-4]+".pkl"
     
     
-    temppath = data_folder + 'algorithm_selection/'+ expt_name + '/' + algorithm + '/' + feature_selection_method 
+    temppath = project_folder + 'algorithm_selection/'+ expt_name + '/' + algorithm + '/' + feature_selection_method 
     bestmodels_cv.to_excel(temppath+"/bestmodels_cv.xlsx")
     
     fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)

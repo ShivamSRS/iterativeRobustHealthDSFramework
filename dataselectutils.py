@@ -471,7 +471,7 @@ def get_dataset(data_file,file_num,label_col,pt_col):
     
     df = pd.read_csv(data_file, index_col= None)
 
-
+    print(data_file)
 
     fold_df = pd.read_csv('fold_information.csv') #reading file specifying which pigs belong to which splits
 
