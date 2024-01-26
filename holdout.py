@@ -366,7 +366,8 @@ for file_num in range(num_files):
     print('TN: ' + str(tn))
     print('FP: ' + str(fp))
     print('FN: ' + str(fn))
-    prevalence = 0.5
+    from configs import prevalence
+    prevalence = prevalence
     sensitivity =tp / (tp + fn)
     specificity = tn/(tn + fp)
     PPV = ( sensitivity * prevalence) / ( (sensitivity * prevalence) + ((1 - specificity) * (1 - prevalence)) )
