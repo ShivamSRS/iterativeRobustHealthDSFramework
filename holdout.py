@@ -4,7 +4,10 @@ from sklearn import linear_model, datasets
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import train_test_split
 import numpy as np
+from matplotlib import pyplot
+from collections import Counter
 import random
+from numpy import where
 random_state = np.random.RandomState(42)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import MinMaxScaler
@@ -85,8 +88,9 @@ import ast
 
 from dataselectutils import get_dataset,get_test_dataset
 from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features
-from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
+from arguments import time_window,data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
 
+from configs import Unbalanced,Downsample_25,feature_selection_method,feature_import_path,algorithm,use_features,prefered_columns,use_prefered_cols
 
 
 data_files = data_files
@@ -105,12 +109,27 @@ from configs import num_splits, expt_name
 num_files = num_splits
 data_folder = ''
 train_or_test = validation+'/'
-results_path = 'results/'+ expt_name+"/"
+results_path = 'results/'+time_window+"/"+ feature_selection_method+"/"
+if Unbalanced is True:
+    if Downsample_25 is True:
+        results_path += "/Unbalanced_25_DS/"
+    else:
+        results_path += "/Unbalanced_25_US/"
 if not os.path.isdir(results_path):
     print(results_path)
-    os.makedirs(results_path)
-
-file_list = [f for f in listdir(data_folder+train_or_test) if isfile(join(data_folder+train_or_test, f))]
+    if not os.path.isdir('results/'+time_window+"/"):
+        os.makedirs('results/'+time_window+"/")
+    if not os.path.isdir('results/'+time_window+"/"+feature_selection_method+"/"):
+        os.makedirs('results/'+time_window+"/"+feature_selection_method+"/")
+    
+    if Unbalanced is True:
+        print("will make result subfolders now")
+        if not os.path.isdir(results_path):
+            print("created the subfolder unbalanced 25 ds")
+            os.makedirs(results_path)
+        
+# exit()
+file_list = [f for f in listdir(test_folder) if isfile(join(test_folder, f))]
 
 filtered_col_list = []
 fold_perf = []
@@ -121,7 +140,6 @@ final_bootstrap_summary = []
 results_df = pd.DataFrame()
 calibration_df = pd.DataFrame()
 
-from configs import feature_selection_method,feature_import_path,algorithm,use_features,prefered_columns,use_prefered_cols
 algorithm = algorithm
 import_feature_list = use_features # 'Y' to use saved features from feature selection code
 if import_feature_list == 'Y':
@@ -147,9 +165,9 @@ else:
 
 for file_num in range(num_files):
     
-    
+    print(test_folder,file_list[file_num],feature_selection_method)
     data_file = file_list[file_num]
-    X,y,test_df = get_test_dataset(data_folder+train_or_test+data_file,label_col,pt_col)
+    X,y,test_df = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col)
     if 'Unnamed: 0' in test_df.columns.tolist():
         test_df = test_df.drop(['Unnamed: 0'], axis =1)
     if 'Unnamed: 0.1' in test_df.columns.tolist():
@@ -174,9 +192,14 @@ for file_num in range(num_files):
     if not os.path.isdir(pickle_folder):
         print(pickle_folder)
         os.makedirs(pickle_folder)
+    print()
     try:
         saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
     except:
+        print(pickle_folder)
+        print("##############")
+        print("ERROR FOR",data_file)
+        print("###############")
         continue
     if selected_features==[]:
             print("no feature was selected, passing whole data instead")
@@ -190,8 +213,41 @@ for file_num in range(num_files):
         X = X.drop([label_col], axis =1)
     X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
 
-
+    print("######",X.shape,type(X),test_df.shape,selected_features)
+    # exit()
+    if Unbalanced is True:
+        if Downsample_25 is True:
+            print(len(y),len((y[y==1]).index),len((y[y==1]).index)/2,(y[y==1]).index)
+            remove_n = 24 #int(len((y[y==1]).index)/2)
+            print(remove_n,X.loc[y[y==1].index,:].index,y[y==1].index)
+            drop_indices = np.random.choice(X.loc[y[y==1].index,:].index, remove_n, replace=False)
+            X = X.drop(drop_indices).reset_index(drop=True)
+            y = y.drop(drop_indices).reset_index(drop=True)
+            test_df = test_df.drop(drop_indices).reset_index(drop=True)
+            print(X.index, y.index)
+            print(X.shape,y.shape,test_df.shape)
+        else:
+            counter = Counter(y)
+            print(counter)
+            print(X.shape,y.shape,test_df.shape)
+            # transform the dataset
+            oversample = SMOTE(sampling_strategy={0:108,1:36})
+            X, y = oversample.fit_resample(X, y)
+            # summarize the new class distribution
+            counter = Counter(y)
+            print(counter)
+            print(X.shape,y.shape,test_df.shape)
+            # scatter plot of examples by class label
+            # for label, _ in counter.items():
+            #     row_ix = where(y == label)[0]
+            #     pyplot.scatter(X[row_ix, 0], X[row_ix, 1], label=str(label))
+            # pyplot.legend()
+            # pyplot.show()
+    
+    # exit()
+    
     Y_pred = saved_model.predict(X)
+    print(Y_pred)
     probas_=saved_model.predict_proba(X)
     
     if algorithm=='RF' or algorithm=='XGB':
@@ -210,14 +266,28 @@ for file_num in range(num_files):
     # fpr["micro"], tpr["micro"], _ = roc_curve(y_test.ravel(), probas_.ravel())
     # roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
     from itertools import cycle
-    
-    if os.path.exists(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method) is False:
-        if os.path.exists(project_folder+"result_images/"+ expt_name+"/") is False:
-            os.mkdir(project_folder+"result_images/"+ expt_name+"/")
-        if os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm) is False:
-            os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm)
+
+    result_images_path = project_folder+'result_images/'+time_window+"/" + expt_name+"/"+algorithm+"/"+feature_selection_method
+    if Unbalanced is True:
+        if Downsample_25 is True:
+            result_images_path += "/Unbalanced_25_DS/"
+        else:
+            result_images_path += "/Unbalanced_25_US/"
+
+    if os.path.exists(result_images_path) is False:
+        if os.path.exists(project_folder+"result_images/"+time_window+"/" + expt_name+"/") is False:
+            os.mkdir(project_folder+"result_images/"+time_window+"/" + expt_name+"/")
+        if os.path.exists(project_folder+"result_images/"+time_window+"/" + expt_name+"/"+algorithm) is False:
+            os.mkdir(project_folder+"result_images/"+time_window+"/" + expt_name+"/"+algorithm)
         
-        os.mkdir(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method)
+        if os.path.exists(project_folder+"result_images/"+time_window+"/" + expt_name+"/"+algorithm+"/"+feature_selection_method) is False:
+            os.mkdir(project_folder+"result_images/"+time_window+"/" + expt_name+"/"+algorithm+"/"+feature_selection_method)
+        if Unbalanced is True:
+            print("will make result images subfolders now")
+            if os.path.isdir(result_images_path) is False:
+                os.makedirs(result_images_path)
+                print("made")
+    
     plt.plot(
         fpr[1],
         tpr[1],
@@ -233,10 +303,12 @@ for file_num in range(num_files):
     plt.ylabel("True Positive Rate")
     plt.title(" Receiver operating characteristic")
     plt.legend(loc="lower right")
-    if not os.path.isdir(project_folder+"result_images/"+ expt_name+"/"):
-        print(project_folder+"result_images/"+ expt_name+"/")
-        os.makedirs(project_folder+"result_images/"+ expt_name+"/")
-    plt.savefig(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method+"/"+data_file[:-4]+'_roc'+'.png')
+
+    # if not os.path.isdir(project_folder+"result_images/"+ expt_name+"/"):
+    #     print(project_folder+"result_images/"+ expt_name+"/")
+    #     os.makedirs(project_folder+"result_images/"+ expt_name+"/")
+
+    plt.savefig(result_images_path+data_file[:-4]+'_roc'+'.png')
     plt.clf()
     lr_precision, lr_recall, _ = precision_recall_curve(y_test, probas_[:, 1])
     # print("FPR",fpr,"TPR",tpr)
@@ -258,7 +330,7 @@ for file_num in range(num_files):
     ax.set_xlabel('Predicted probability')
     ax.set_ylabel('Fraction of positive')
     plt.legend()
-    plt.savefig(project_folder+"result_images/"+ expt_name+"/"+algorithm+"/"+feature_selection_method+"/"+data_file[:-4]+'_calibration.png')
+    plt.savefig(result_images_path+data_file[:-4]+'_calibration.png')
     plt.clf()
     
     
@@ -278,8 +350,8 @@ for file_num in range(num_files):
             fp_iloc_list.append(i)
         if (Y_pred[i] == 0) & (y_test[i] == 1):
             fn_iloc_list.append(i)
-    fp_x = test_df.iloc[fp_iloc_list]
-    fn_x = test_df.iloc[fn_iloc_list]
+    fp_x = X.iloc[fp_iloc_list]
+    fn_x = X.iloc[fn_iloc_list]
     # boundary_fp_pct = round(((fp_x[(fp_x[label_col]==1) & (fp_x[label_col]==0)].shape[0]/x_test.shape[0])*100),2)
     # boundary_fn_pct = round(((fn_x[(fn_x['label']>10) & (fn_x[label_col]<20)].shape[0]/x_test.shape[0])*100),2)
     # boundary_all_errors_pct = round(((fp_x[(fp_x['label']>10) & (fp_x['label']<20)].shape[0]
