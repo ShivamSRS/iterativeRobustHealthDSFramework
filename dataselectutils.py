@@ -82,7 +82,7 @@ import time
 from os import listdir
 from os.path import isfile, join
 
-from arguments import data_files,test_folder,train_folder,project_folder,data_folder
+from arguments import data_files,test_folder,train_folder,project_folder,data_folder,fold_information_file
 from configs import remove_diagnostic_features, diagnostic_features
 
 import warnings
@@ -471,11 +471,12 @@ def get_dataset(data_file,file_num,label_col,pt_col):
     
     df = pd.read_csv(data_file, index_col= None)
 
-    print(data_file)
+    print(data_file,"FOld info file is",os.path.join(project_folder,fold_information_file))
 
-    fold_df = pd.read_csv('fold_information.csv') #reading file specifying which pigs belong to which splits
-
-    folds_for_current_split = fold_df[fold_df['split']==file_num+1]
+    fold_df = pd.read_csv(os.path.join(project_folder,fold_information_file)) #reading file specifying which pigs belong to which splits
+    # print(file_num+1,fold_df[fold_df['filename']==data_file.split("/")[-1]],sep="\n\n")
+    folds_for_current_split = fold_df[fold_df['filename']==data_file.split("/")[-1]]
+    # print(folds_for_current_split)
     fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
     fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
     fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])

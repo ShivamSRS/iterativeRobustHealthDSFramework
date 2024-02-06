@@ -257,7 +257,7 @@ for file_num in range(num_files):
                                  algorithm + '/' + feature_selection_method + \
                                  '/model_' + file_list[file_num][:-4] + '/'
     data_file = file_list[file_num]
-    print('Processing file ' + data_file)
+    print('Processing file ' + data_file,os.path.join(project_folder,train_or_test,time_window,data_file),file_num)
     if not os.path.isdir(All_file_pickle_folder):
         print(All_file_pickle_folder)
         os.makedirs(All_file_pickle_folder)
@@ -323,13 +323,18 @@ for file_num in range(num_files):
     
     clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
     import time
-    # startfit = time.time()
+    print("Will start fitting now")
+    startfit = time.time()
     # print("This is ",X,y,sep="\n\n")
+    # exit()print
+
+    # print(y,X.loc[y[y==1].index,:],len(y[y==1]),len(y[y==0]),df_dataset.loc[cv[0][1],['deidentified_study_id','ards_flag']],len(cv[0]))
+    # print(df_dataset.shape)
     # exit()
     clf.fit(X, y)
     
-    # endfit = time.time()
-    # print(endfit-startfit,"fitting took this much time")
+    endfit = time.time()
+    print(endfit-startfit,"fitting took this much time")
     # print(clf.best_estimator_)
     # print("BEst results",clf.best_score_,"index",clf.best_index_,"best params",clf.best_params_)
     fold_perf.append(clf.cv_results_)

@@ -1,17 +1,18 @@
 #modify the feature method a t three places
 expt_name = "30h"
-feature_selection_method = "CFS_400_50_Alt"
-use_features='N'
+feature_selection_method = "CFS_400_50_True"
+use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
 else:
     suffix_str='_10'
 
 no_of_pts = 240  
-Unbalanced = False
-Downsample_25 = False
+prevalence =0.25
+Unbalanced = True
+Downsample_25 = True
   
-feature_import_path ='pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
+feature_import_path = 'pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 algorithm = 'RF'
 num_splits = 100
 
@@ -27,9 +28,9 @@ CFS_300_75_Alt = CFS_300_75_True + ["sf_max","fio2_max","spo2_mean","fio2_min","
 CFS_400_75_True = ["lab_pf_ratio_res_min"]
 CFS_400_75_Alt = CFS_400_75_True + ["sf_min","spo2_mean","lab_pf_ratio_res_min","lab_pf_ratio_res_max","sf97","sf_median","spo2_min","lab_pf_ratio_res_median"]
 
-prefered_columns =CFS_400_50_Alt#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
+prefered_columns =CFS_400_50_True#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
 
-
+use_prefered_cols = True
 
 
 
@@ -38,7 +39,7 @@ diagnostic_features = ['lab_vbg_pco2_res','lab_abg_ph_res','lab_abg_po2_res', 'l
 
 mutual_info_cols = ['POS_DIST_OBSTETRICS_ZP' ,'ACS_PCT_MEDICAID_ANY_BELOW64_ZC','ACS_PCT_ENGLISH_ZC','ACS_TOT_OWN_CHILD_BELOW17_ZC','ACS_TOT_POP_US_ABOVE1_ZC']
 #mutual_info_cols2=['superimposed with SF w/ SF', 'chronic hypertension', 'POS_DIST_OBSTETRICS_ZP', 'N_HDP Diag', 'ACS_TOT_OWN_CHILD_BELOW17_ZC', 'Multiple', 'Y_ECG', 'ACS_PCT_GRADUATE_DGR_ZC', 'No Episode', 'N_ECG']
-use_prefered_cols = True
+
 
 
 """'statistical_feature_selection': 1,

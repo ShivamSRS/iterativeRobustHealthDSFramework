@@ -5,8 +5,8 @@ import joblib
 import os
 
 
-foldinfo = pd.read_csv("/data1/srsrai/ehrdata/fold_information.csv")
-datafile = pd.read_csv("/data1/srsrai/ehrdata/datafile/ehr48h_summary_imputed.csv")
+foldinfo = pd.read_csv("/data1/srsrai/ehrdata_DS/Downsample 25 fold_information.csv")
+datafile = pd.read_csv("/data1/srsrai/ehrdata_DS/datafile/ehr48h_summary_imputed.csv")
 print(foldinfo.columns,len(foldinfo))
 new = pd.DataFrame([[-1 ]* len(foldinfo.columns)]*len(foldinfo),index = [i for i in range(100)],columns=foldinfo.columns)
 
@@ -14,82 +14,83 @@ print(new)
 
 longlistARDSprevalence = []
 
-# for idx,i in enumerate(foldinfo.iterrows()):
-#     # print(i[1]['fold_1'])
-#     print("IIÎ",i[1]['filename'])
-#     # print(i[1]['fold_1'])
-#     new.loc[idx,'filename']=i[1]['filename']
-#     new.loc[idx,'split']=i[1]['split']
-#     # print(new)
-#     i[1]['fold_1']=list(map(str.strip, i[1]['fold_1'].strip('][').replace('"', '').split(',')))
-#     i[1]['fold_2']=list(map(str.strip, i[1]['fold_2'].strip('][').replace('"', '').split(',')))
-#     i[1]['fold_3']=list(map(str.strip, i[1]['fold_3'].strip('][').replace('"', '').split(',')))
-#     i[1]['fold_4']=list(map(str.strip, i[1]['fold_4'].strip('][').replace('"', '').split(',')))
-#     i[1]['fold_5']=list(map(str.strip, i[1]['fold_5'].strip('][').replace('"', '').split(',')))
-#     # print(i[1]['fold_1'])
-#     # continue
-#     prevalence_count = 0
-#     for patient in i[1]['fold_1']:
-#         # print(datafile.columns)
+for idx,i in enumerate(foldinfo.iterrows()):
+    # print(i[1]['fold_1'])
+    print("IIÎ",i[1]['filename'])
+    # print(i[1]['fold_1'])
+    new.loc[idx,'filename']=i[1]['filename']
+    new.loc[idx,'split']=i[1]['split']
+    # print(new)
+    i[1]['fold_1']=list(map(str.strip, i[1]['fold_1'].strip('][').replace('"', '').split(',')))
+    i[1]['fold_2']=list(map(str.strip, i[1]['fold_2'].strip('][').replace('"', '').split(',')))
+    i[1]['fold_3']=list(map(str.strip, i[1]['fold_3'].strip('][').replace('"', '').split(',')))
+    i[1]['fold_4']=list(map(str.strip, i[1]['fold_4'].strip('][').replace('"', '').split(',')))
+    i[1]['fold_5']=list(map(str.strip, i[1]['fold_5'].strip('][').replace('"', '').split(',')))
+    # print(i[1]['fold_1'])
+    # continue
+    prevalence_count = 0
+    for patient in i[1]['fold_1']:
+        # print(datafile.columns)
         
-#         patient = int(patient)
-#         # print(patient,len(i[1]['fold_1']))
+        patient = int(patient)
+        # print(patient,len(i[1]['fold_1']))
 
-#         flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
-#         # print(patient,flag,prevalence_count)
-#         prevalence_count+=flag
-#     # print(prevalence_count,len(i[1]['fold_1']),15/33)    
-#     # exit()
+        flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
+        # print(patient,flag,prevalence_count)
+        prevalence_count+=flag
+    # print(prevalence_count,len(i[1]['fold_1']),15/33)    
+    # exit()
     
-#     new.loc[idx,'fold_1']=prevalence_count*100/len(i[1]['fold_1'])
-#     longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_1']))
-#     prevalence_count = 0
-#     for patient in i[1]['fold_2']:
-#         # print(datafile.columns)
-#         patient = int(patient)
-#         # print(patient,len(i[1]['fold_2']))
+    new.loc[idx,'fold_1']=prevalence_count*100/len(i[1]['fold_1'])
+    longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_1']))
+    prevalence_count = 0
+    for patient in i[1]['fold_2']:
+        # print(datafile.columns)
+        patient = int(patient)
+        # print(patient,len(i[1]['fold_2']))
 
-#         flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
-#         prevalence_count+=flag
-#     new.loc[idx,'fold_2']=prevalence_count*100/len(i[1]['fold_2'])
+        flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
+        prevalence_count+=flag
+    new.loc[idx,'fold_2']=prevalence_count*100/len(i[1]['fold_2'])
 
-#     longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_2']))
-#     prevalence_count = 0
-#     for patient in i[1]['fold_3']:
-#         # print(datafile.columns)
-#         patient = int(patient)
-#         # print(patient,len(i[1]['fold_3']))
+    longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_2']))
+    prevalence_count = 0
+    for patient in i[1]['fold_3']:
+        # print(datafile.columns)
+        patient = int(patient)
+        # print(patient,len(i[1]['fold_3']))
 
-#         flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
-#         prevalence_count+=flag
-#     new.loc[idx,'fold_3']=prevalence_count*100/len(i[1]['fold_3'])
-#     longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_3']))
-#     prevalence_count = 0
+        flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
+        prevalence_count+=flag
+    new.loc[idx,'fold_3']=prevalence_count*100/len(i[1]['fold_3'])
+    longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_3']))
+    prevalence_count = 0
     
-#     for patient in i[1]['fold_4']:
-#         # print(datafile.columns)
-#         patient = int(patient)
-#         # print(patient,len(i[1]['fold_4']))
+    for patient in i[1]['fold_4']:
+        # print(datafile.columns)
+        patient = int(patient)
+        # print(patient,len(i[1]['fold_4']))
 
-#         flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
-#         prevalence_count+=flag
-#     new.loc[idx,'fold_4']=prevalence_count*100/len(i[1]['fold_4'])
-#     longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_4']))
-#     prevalence_count = 0
-#     for patient in i[1]['fold_5']:
-#         # print(datafile.columns)
-#         patient = int(patient)
-#         # print(patient,len(i[1]['fold_5']))
+        flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
+        prevalence_count+=flag
+    new.loc[idx,'fold_4']=prevalence_count*100/len(i[1]['fold_4'])
+    longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_4']))
+    prevalence_count = 0
+    for patient in i[1]['fold_5']:
+        # print(datafile.columns)
+        patient = int(patient)
+        # print(patient,len(i[1]['fold_5']))
 
-#         flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
-#         prevalence_count+=flag
+        flag = int(datafile.loc[datafile['deidentified_study_id']==patient,'ards_flag'])
+        prevalence_count+=flag
     
-#     new.loc[idx,'fold_5']=prevalence_count*100/(len(i[1]['fold_5']))
-#     longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_5']))
-#     # break
-# print(new)
+    new.loc[idx,'fold_5']=prevalence_count*100/(len(i[1]['fold_5']))
+    longlistARDSprevalence.append(prevalence_count*100/len(i[1]['fold_5']))
+    # break
+print(new)
+new.to_excel("Fold_wise_ARDSPrevalenceDistribution.xlsx")
+exit()
 
-# new.to_excel("Fold_wise_ARDSPrevalenceDistribution.xlsx")
 # trainfile = train_folder + "EHR_train_1.csv"
 # testfile = test_folder + "EHR_test_1.csv"
 new = pd.read_excel("Fold_wise_ARDSPrevalenceDistribution.xlsx")
