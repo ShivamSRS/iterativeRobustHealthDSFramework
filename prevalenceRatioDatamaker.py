@@ -127,7 +127,8 @@ if fold_information_flag ==True:
         # exit()
         folds_for_current_split = folds_info[folds_info['split']==file_num+1]
         train_filename = folds_for_current_split['filename'].tolist()[0]
-        print(train_filename)
+        print(train_filename,file_num)
+        # exit()
         fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
         fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
         fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
@@ -162,6 +163,7 @@ if fold_information_flag ==True:
         train = pd.concat([train_fold_1,train_fold_2,train_fold_3,train_fold_4,train_fold_5],ignore_index=True,axis = 0)
         test = all_data[all_data[pt_col].isin(test_patients)] 
         print(train,os.path.join(train_folder,train_filename))
+        # exit()
         print("ending")
         # exit()
         print(train_folder+train_filename)
