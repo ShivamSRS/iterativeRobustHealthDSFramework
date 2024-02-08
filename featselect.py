@@ -232,9 +232,9 @@ classification_metrics = ["mean_test_roc_auc_brier","mean_test_roc_auc","mean_te
 # "mean_train_roc_auc","split1_train_roc_auc","split2_train_roc_auc","split3_train_roc_auc","split4_train_roc_auc",
 classification_metrics_ci = [m[5:] + ' 95% CI' for m in classification_metrics]
 
-forcols = pd.read_excel("/data1/srsrai/ehrdata/algorithm_selection/RF/statistical_feature_selection/fullbestmodels_cv.xlsx")
+forcols = pd.read_excel(project_folder+"algorithm_selection/RF/statistical_feature_selection/fullbestmodels_cv.xlsx")
 fullmodels_cv = pd.DataFrame(columns = forcols.columns)
-bestmodels_cv = pd.DataFrame(columns =resultdfcols+classification_metrics_ci)
+bestmodels_cv = pd.DataFrame(columns =["Filename"]+resultdfcols+classification_metrics_ci)
 
 # if args.featselection!='SFS':
 #     feature_selection_method = 'RFE'
@@ -395,10 +395,11 @@ for file_num in range(num_files):
     # print("\n\n\n\n",endcal-calc1,"calculation time ")
     # print(tmp1)
     # exit() 
-    tmp_bootstrap_summary = pd.DataFrame([tmp1[0]],columns=resultdfcols+classification_metrics_ci)
+    # print(type(data_file.split("/")[-1]),data_file.split("/")[-1])
+    tmp_bootstrap_summary = pd.DataFrame([[data_file.split("/")[-1]]+tmp1[0]],columns=["Filename"]+resultdfcols+classification_metrics_ci)
     tmp_bootstrap_summary.to_excel("temp.xlsx")
     # exit()
-    bestmodels_cv=bestmodels_cv.append(tmp_bootstrap_summary,ignore_index= True)
+    bestmodels_cv=pd.concat([bestmodels_cv,tmp_bootstrap_summary],ignore_index= True)
     
     # print("best model",temp[temp["params"]==clf.best_params_])
     # print(results_df.columns)
@@ -412,7 +413,7 @@ for file_num in range(num_files):
     temppath = project_folder + 'algorithm_selection/'+ expt_name + '/' + algorithm + '/' + feature_selection_method 
     bestmodels_cv.to_excel(temppath+"/bestmodels_cv.xlsx")
     
-    fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)
+    fullmodels_cv= pd.concat([fullmodels_cv,temp],ignore_index=True)
     fullmodels_cv.to_excel(temppath+"/fullbestmodels_cv.xlsx")
     # exit()
     joblib.dump(model_to_choose, All_file_pickle_folder+model_file)
