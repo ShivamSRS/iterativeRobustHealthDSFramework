@@ -232,12 +232,13 @@ for file_num in range(len(train_file_list)):
             # summarize the new class distribution
 
             
-            train_df = pd.concat([newIDs,X, y],axis = 1)
+            train_df = pd.concat([newIDs, y, X],axis = 1)
             counter = Counter(train_df[label_col])
             print(counter)
             print(X.shape,y.shape,train_df.shape)
     print(list(train_df.deidentified_study_id))
     acceptable = False
+    # exit()
     unique_pts_list_0 = list(set(train_df[train_df[label_col]==0][pt_col]))
     unique_pts_list_1 = list(set(train_df[train_df[label_col]==1][pt_col]))
     # while acceptable != True:
@@ -432,5 +433,8 @@ for file_num in range(len(train_file_list)):
     
 cols = ['filename', 'split', 'fold_1', 'fold_2', 'fold_3', 'fold_4', 'fold_5']
 fold_df = pd.DataFrame(rows, columns = cols)
-fold_df.to_csv(project_folder+'Downsample 25 fold_information.csv', index=False)
+if Downsample_25 is True:
+    fold_df.to_csv(project_folder+'Downsample 25 fold_information.csv', index=False)
+else:
+    fold_df.to_csv(project_folder+'Upsample 25 fold_information.csv', index=False)
 

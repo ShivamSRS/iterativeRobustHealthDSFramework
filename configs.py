@@ -10,7 +10,7 @@ else:
 no_of_pts = 240  
 prevalence =0.25
 Unbalanced = True
-Downsample_25 = True
+Downsample_25 = False
   
 feature_import_path = 'pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 algorithm = 'RF'
