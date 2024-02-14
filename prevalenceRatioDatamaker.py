@@ -100,8 +100,8 @@ number_of_splits = num_splits
 label_col,pt_col = label_col,pt_col
 
 # print(train_folder,test_folder)
-train_file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
-# print(train_folder,test_folder,train_file_list)
+train_file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f)) and (f[-3:]=='csv' or f[-3]=='xls' or f[-4:]=='xlsx')]
+print(train_folder,test_folder,train_file_list,train_file_list[58])
 # exit()
 rows = []
 
