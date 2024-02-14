@@ -84,7 +84,7 @@ import ast
 from random import sample
 from configs import num_splits, Unbalanced, Downsample_25
 from argparse import ArgumentParser
-from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
+from arguments import data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col,time_window
 import warnings
 from dataselectutils import get_test_dataset
 warnings.filterwarnings("ignore")
@@ -108,67 +108,143 @@ rows = []
 ##USe this code block wehn u alrrady have the downsampled splits and want to apply to other time windows
 from arguments import fold_information_flag, fold_information_file
 if fold_information_flag ==True:
-    folds_info = pd.read_csv(fold_information_file)
-    main_df = pd.read_csv(os.path.join(data_folder,data_files[0]))
-    df_list = [pd.read_csv(os.path.join(data_folder,i)) for i in data_files]
-    all_data = main_df
-    print(main_df)
-    print(all_data.columns)
-    total_pts = []
-    for df_list_member in df_list:
-        total_pts += df_list_member[pt_col].tolist()
+    if Downsample_25 is True:
+        folds_info = pd.read_csv(fold_information_file)
+        main_df = pd.read_csv(os.path.join(data_folder,data_files[0]))
+        df_list = [pd.read_csv(os.path.join(data_folder,i)) for i in data_files]
+        all_data = main_df
+        print(main_df)
+        print(all_data.columns)
+        total_pts = []
+        for df_list_member in df_list:
+            total_pts += df_list_member[pt_col].tolist()
 
 
-    all_pts = list(set(total_pts))
+        all_pts = list(set(total_pts))
 
-    for file_num in range(number_of_splits):
+        for file_num in range(number_of_splits):
 
-        print("fold infromation",folds_info)
-        # exit()
-        folds_for_current_split = folds_info[folds_info['split']==file_num+1]
-        train_filename = folds_for_current_split['filename'].tolist()[0]
-        print(train_filename,file_num)
-        # exit()
-        fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
-        fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
-        fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
-        fold_4_pigs = ast.literal_eval(folds_for_current_split['fold_4'].tolist()[0])
-        fold_5_pigs = ast.literal_eval(folds_for_current_split['fold_5'].tolist()[0])
+            print("fold infromation",folds_info)
+            # exit()
+            folds_for_current_split = folds_info[folds_info['split']==file_num+1]
+            train_filename = folds_for_current_split['filename'].tolist()[0]
+            print(train_filename,file_num)
+            # exit()
+            fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
+            fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
+            fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
+            fold_4_pigs = ast.literal_eval(folds_for_current_split['fold_4'].tolist()[0])
+            fold_5_pigs = ast.literal_eval(folds_for_current_split['fold_5'].tolist()[0])
 
 
-        all_fold_pigs = [np.array(fold_1_pigs),np.array(fold_2_pigs),np.array(fold_3_pigs),np.array(fold_4_pigs),np.array(fold_5_pigs)]
+            all_fold_pigs = [np.array(fold_1_pigs),np.array(fold_2_pigs),np.array(fold_3_pigs),np.array(fold_4_pigs),np.array(fold_5_pigs)]
+            
+            test_patients = []
+
+            for i in all_pts:
+                if i not in fold_1_pigs:
+                    if i not in fold_2_pigs:
+                        if i not in fold_3_pigs:
+                            if i not in fold_4_pigs:
+                                if i not in fold_5_pigs:
+                                    test_patients.append(i)
+            # print(test_patients)
+            train_fold_1 = all_data[all_data[pt_col].isin(fold_1_pigs)] #all_data.take(list(indices_to_keep))
+            # print(len(train_fold_1))
+            train_fold_2 = all_data[all_data[pt_col].isin(fold_2_pigs)] #all_data.take(list(indices_to_keep))
+            # print(len(train_fold_2))
+
+            train_fold_3 = all_data[all_data[pt_col].isin(fold_3_pigs)] #all_data.take(list(indices_to_keep))
+            # print(len(train_fold_3))
+            train_fold_4 = all_data[all_data[pt_col].isin(fold_4_pigs)] #all_data.take(list(indices_to_keep))
+            # print(len(train_fold_4))
+            train_fold_5 = all_data[all_data[pt_col].isin(fold_5_pigs)] #all_data.take(list(indices_to_keep))
+            # print(len(train_fold_5),train_fold_5)
+
+            train = pd.concat([train_fold_1,train_fold_2,train_fold_3,train_fold_4,train_fold_5],ignore_index=True,axis = 0)
+            test = all_data[all_data[pt_col].isin(test_patients)]
+            pew = sorted(list(train.deidentified_study_id))
+            print(pew,len(pew),os.path.join(train_folder,train_filename))
+            # exit()
+            print("ending")
+            # exit()
+            print(train_folder+train_filename)
+            train.to_csv(os.path.join(train_folder,train_filename),index=False)
+            # test.to_csv(test_folder+train_filename.replace('train','test'),index=False)
+    else:
         
-        test_patients = []
+        folds_info = pd.read_csv(fold_information_file)
 
-        for i in all_pts:
-            if i not in fold_1_pigs:
-                if i not in fold_2_pigs:
-                    if i not in fold_3_pigs:
-                        if i not in fold_4_pigs:
-                            if i not in fold_5_pigs:
-                                test_patients.append(i)
-        # print(test_patients)
-        train_fold_1 = all_data[all_data[pt_col].isin(fold_1_pigs)] #all_data.take(list(indices_to_keep))
-        # print(len(train_fold_1))
-        train_fold_2 = all_data[all_data[pt_col].isin(fold_2_pigs)] #all_data.take(list(indices_to_keep))
-        # print(len(train_fold_2))
+        for file_num in range(len(train_file_list)):
 
-        train_fold_3 = all_data[all_data[pt_col].isin(fold_3_pigs)] #all_data.take(list(indices_to_keep))
-        # print(len(train_fold_3))
-        train_fold_4 = all_data[all_data[pt_col].isin(fold_4_pigs)] #all_data.take(list(indices_to_keep))
-        # print(len(train_fold_4))
-        train_fold_5 = all_data[all_data[pt_col].isin(fold_5_pigs)] #all_data.take(list(indices_to_keep))
-        # print(len(train_fold_5),train_fold_5)
+            print(file_num,train_file_list[file_num])
+            folds_for_current_split = folds_info[folds_info['filename']==train_file_list[file_num]]
+            print(folds_for_current_split)
 
-        train = pd.concat([train_fold_1,train_fold_2,train_fold_3,train_fold_4,train_fold_5],ignore_index=True,axis = 0)
-        test = all_data[all_data[pt_col].isin(test_patients)] 
-        print(train,os.path.join(train_folder,train_filename))
-        # exit()
-        print("ending")
-        # exit()
-        print(train_folder+train_filename)
-        train.to_csv(os.path.join(train_folder,train_filename),index=False)
-        # test.to_csv(test_folder+train_filename.replace('train','test'),index=False)
+            fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
+            fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
+            fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
+            fold_4_pigs = ast.literal_eval(folds_for_current_split['fold_4'].tolist()[0])
+            fold_5_pigs = ast.literal_eval(folds_for_current_split['fold_5'].tolist()[0])
+
+
+            all_fold_pigs = [np.array(fold_1_pigs),np.array(fold_2_pigs),np.array(fold_3_pigs),np.array(fold_4_pigs),np.array(fold_5_pigs)]
+            print(all_fold_pigs)
+            train_df = pd.read_csv(os.path.join(train_folder,train_file_list[file_num]))
+            train_df = train_df.drop('Unnamed: 0',axis=1)
+            print(train_df['lab_chloride_res_mean'].isna().sum())
+            
+            if time_window == '12h':
+                train_df['lab_chloride_res_mean'] = train_df['lab_chloride_res_mean'].fillna(100)
+            print(train_df['lab_chloride_res_mean'].isna().sum())
+            # exit()
+            # transform the dataset
+            newIDs = train_df.loc[:,pt_col]
+            train_df = train_df.drop(pt_col,axis=1)
+            for i in range(84*2):
+                newIDs.at[len(train_df)+i] =  241+i
+            #     print(len(newIDs),len(train_df))
+            print(len(newIDs))
+            
+            print(train_df.loc[:,train_df.columns!=label_col], train_df[label_col])
+            
+            counter = Counter(train_df[label_col])
+            print(counter)
+            oversample = SMOTE(sampling_strategy={0:84*3,1:84})
+            X, y = oversample.fit_resample(train_df.loc[:,train_df.columns!=label_col], train_df[label_col])
+            # summarize the new class distribution
+
+            
+            train_df = pd.concat([newIDs, y, X],axis = 1)
+            counter = Counter(train_df[label_col])
+
+            print(counter)
+            print(X.shape,y.shape,train_df.shape)
+
+            train_fold_1 = train_df[train_df[pt_col].isin(fold_1_pigs)] #all_data.take(list(indices_to_keep))
+            print(len(train_fold_1),len(fold_1_pigs))
+            train_fold_2 = train_df[train_df[pt_col].isin(fold_2_pigs)] #all_data.take(list(indices_to_keep))
+            print(len(train_fold_2),len(fold_2_pigs))
+
+            train_fold_3 = train_df[train_df[pt_col].isin(fold_3_pigs)] #all_data.take(list(indices_to_keep))
+            print(len(train_fold_3),len(fold_3_pigs))
+            train_fold_4 = train_df[train_df[pt_col].isin(fold_4_pigs)] #all_data.take(list(indices_to_keep))
+            print(len(train_fold_4),len(fold_4_pigs))
+            train_fold_5 = train_df[train_df[pt_col].isin(fold_5_pigs)] #all_data.take(list(indices_to_keep))
+            print(len(train_fold_5),len(fold_5_pigs))
+
+            train = pd.concat([train_fold_1,train_fold_2,train_fold_3,train_fold_4,train_fold_5],ignore_index=True,axis = 0)
+            pew = list(train.deidentified_study_id)
+            print(pew,len(pew))
+            print(train)
+            print(os.path.join(train_folder,train_file_list[file_num]))
+
+
+            # exit()
+            
+            train.to_csv(os.path.join(train_folder,train_file_list[file_num]),index=False)
+
+
 
 
     exit()
@@ -221,7 +297,8 @@ for file_num in range(len(train_file_list)):
             train_df = train_df.drop(pt_col,axis=1)
             for i in range(84*2):
                 newIDs.at[len(train_df)+i] =  241+i
-            
+            #     print(len(newIDs),len(train_df))
+            # print(len(newIDs))
             
             # print(train_df.loc[:,train_df.columns!=label_col], train_df[label_col])
             # exit()
@@ -236,9 +313,9 @@ for file_num in range(len(train_file_list)):
             counter = Counter(train_df[label_col])
             print(counter)
             print(X.shape,y.shape,train_df.shape)
-    print(list(train_df.deidentified_study_id))
+    print(list(train_df.deidentified_study_id),len(list(train_df.deidentified_study_id)))
     acceptable = False
-    # exit()
+    
     unique_pts_list_0 = list(set(train_df[train_df[label_col]==0][pt_col]))
     unique_pts_list_1 = list(set(train_df[train_df[label_col]==1][pt_col]))
     # while acceptable != True:
@@ -279,7 +356,8 @@ for file_num in range(len(train_file_list)):
     # exit()]
     import math
     
-    if len(pt_indices_5)/len(ards_pt_indices_5)<0.9*3:
+    if len(pt_indices_5)/len(ards_pt_indices_5)<0.9*3 :
+        print("set 5",len(pt_indices_5)/len(ards_pt_indices_5))
         if 3*len(ards_pt_indices_5)<len(pt_indices_5):
             remove_n = len(pt_indices_5) - 3*len(ards_pt_indices_5)
             drop_indices = np.random.choice(pt_indices_5, remove_n, replace=False)
@@ -293,7 +371,7 @@ for file_num in range(len(train_file_list)):
         else:
             remove_n =   len(ards_pt_indices_5)-int(len(pt_indices_5)/3)
             drop_indices = np.random.choice(ards_pt_indices_5, remove_n, replace=False)
-            
+            print("more b4",len(ards_pt_indices_5),len(pt_indices_5))
             drop_pts = [unique_pts_list_1[k] for k in drop_indices]
             train_df=train_df.drop(train_df[train_df[pt_col].isin(drop_pts)].index)
             
