@@ -1,6 +1,6 @@
 #modify the feature method a t three places
-expt_name = "CFS_400_50_True"
-feature_selection_method = "CFS_400_50_True"
+expt_name = "12h_without_abg"
+feature_selection_method = "CFS_300_50_Alt"
 use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''

@@ -206,7 +206,8 @@ hyperparameter_grid = hyperparameter_catalog[algorithm]
 
 
 
-file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
+file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f)) and (f[-3:]=='csv' or f[-3]=='xls' or f[-4:]=='xlsx')]
+
 # print(file_list,train_folder)
 # exit()
 filtered_col_list = []
@@ -218,7 +219,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument("--featselection",default='SFS')
 # args = parser.parse_args()
 
-from configs import feature_selection_method,feature_import_path,use_prefered_cols,prefered_columns,expt_name
+from configs import feature_selection_method,feature_import_path,use_features,prefered_columns,expt_name
 
 import_feature_list = use_features # 'Y' to use saved features from feature selection code
 if import_feature_list == 'Y':
@@ -295,7 +296,7 @@ for file_num in range(num_files):
         else:
             print("cant load the feature selection path")
         
-        if use_prefered_cols:
+        if use_features:
             selected_features = prefered_columns
         print("selected features are ",len(selected_features),selected_features)
         X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]

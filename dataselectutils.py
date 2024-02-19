@@ -535,7 +535,9 @@ def get_dataset(data_file,file_num,label_col,pt_col):
 
     y = df[label_col]
     if remove_diagnostic_features==True:
-        X=X.drop(diagnostic_features,axis =1)
+        for x in diagnostic_features:
+            if x in X.columns:
+                X=X.drop(x,axis =1)
 
 
     if only_comm == 'y':

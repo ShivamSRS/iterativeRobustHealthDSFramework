@@ -247,7 +247,7 @@ if fold_information_flag ==True:
 
 
 
-    exit()
+exit()
 
 for file_num in range(len(train_file_list)):
     print('Creating folds for file ' + str(file_num + 1))
