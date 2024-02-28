@@ -6,6 +6,7 @@ from ventmap.breath_meta import get_file_breath_meta,get_file_experimental_breat
 import pickle
 import joblib
 import ast
+import time
 
 # filepath = "/data/vwd-deidentified-data/011/011-consolidate-vwd-2009-03-03-22-33-02.957.csv"
 # breath_meta = get_file_breath_meta(filepath, to_data_frame=True,new_format=True)
@@ -17,11 +18,37 @@ from configs import no_of_pts
 
 class VentData:
     def __init__(self,fold_info_file):
+        
+        # print(self.fold_pts)
+
+        
+        # self.read_pickled_breath()
+        # self.get_train_test_file(1)
+        # exit()
+
+        for pt in range(1,no_of_pts+1):
+            print("processing patient ",pt)
+            start=time.time()
+            if os.path.exists(os.path.join(ventDataFile,str(pt))) is False:
+                os.mkdir(os.path.join(ventDataFile,str(pt)))
+
+            if os.path.exists(os.path.join(ventDataFile,str(pt),"patientid_{}_vwd_summary.xlsx".format(pt,pt))):
+                statinfo = os.stat(os.path.join(ventDataFile,str(pt),"patientid_{}_vwd_summary.xlsx".format(pt,pt)))
+                if statinfo.st_size>10560:
+                    continue
+                self.make_breath_vector_for_a_single_split(ventDataFolder,pt)#continue
+            else:
+                self.make_breath_vector_for_a_single_split(ventDataFolder,pt)
+            end = time.time()
+            print("Processing patient",pt,"took",time.strftime("%Hh%Mm%Ss", time.gmtime(end-start)),"time")
+            print("completely processed patient",pt) 
+
         self.fold_infos = pd.read_csv(ventDataFolder+"/fold_information.csv")
         fold_names = ["fold_1","fold_2","fold_3","fold_4","fold_5"]
         self.fold_pts = {'EHR_train_{}.csv'.format(i):[] for i in range(1,len(self.fold_infos)+1)}
-        
+        print(self.fold_infos,self.fold_pts)
         for num_pt in range(1,len(self.fold_infos)+1):
+            # print("nm pts",num_pt)
             for fold in fold_names:
                 fold_1 = list(self.fold_infos[fold][num_pt-1].split(", "))
                 fold_1[0] = fold_1[0][1:]
@@ -29,22 +56,7 @@ class VentData:
                 fold_1 = [ int(i) for i in fold_1]
                 # print(fold_1)
                 self.fold_pts['EHR_train_{}.csv'.format(num_pt)].append(fold_1)
-        # print(self.fold_pts)
-
-        # self.make_breath_vector_for_a_single_split(ventDataFolder,138)
-        # self.read_pickled_breath()
-        # self.get_train_test_file(1)
-        # exit()
-        for pt in range(1,no_of_pts+1):
-            print("processing patient ",pt)
-            if os.path.exists(os.path.join(ventDataFile,str(pt))) is False:
-                os.mkdir(os.path.join(ventDataFile,str(pt)))
-
-            if os.path.exists(os.path.join(ventDataFile,str(pt),"patientid_{}_vwd_summary.xlsx".format(pt,pt))):
-                print()
-                self.make_breath_vector_for_a_single_split(ventDataFolder,pt)#continue
-            else:
-                self.make_breath_vector_for_a_single_split(ventDataFolder,pt)
+        print(self.fold_pts,len(self.fold_pts['EHR_train_1.csv']))
     
     def make_breath_vector_for_a_single_split(self,ventDataFolder,num_pt):
         if num_pt//10==0:
@@ -56,7 +68,13 @@ class VentData:
         print(num_pt_formatted)
         filepath = glob.glob(ventDataFolder+'/{}/*{}*consolidate*.csv'.format(num_pt_formatted,num_pt_formatted))#"/data/vwd-deidentified-data/{}/138-consolidate-vwd-2016-06-07-22-04-37.623.csv".format(num_pt)
         print(filepath)
-        breath_meta = get_file_breath_meta(filepath[0], to_data_frame=True,new_format=True)
+
+        try:
+            breath_meta = get_file_experimental_breath_meta(filepath[0], to_data_frame=True,new_format=True)
+        except:
+            breath_meta = get_file_experimental_breath_meta(filepath[0], ignore_missing_bes=False,to_data_frame=True,new_format=True)
+        
+            
         
         breath_meta.to_excel(os.path.join(ventDataFile,str(num_pt),"patientid_{}_vwd_summary.xlsx".format(num_pt,num_pt)))
 
