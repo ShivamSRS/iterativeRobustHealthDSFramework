@@ -83,6 +83,7 @@ import time
 from os import listdir
 from os.path import isfile, join
 
+from VentWaveData import VentData
 
 
 import warnings
@@ -91,7 +92,7 @@ warnings.filterwarnings("ignore")
 
 
 from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features
-from arguments import time_window,data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
+from arguments import time_window,data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col,ventDataFiles_median,ventDataFolder
 
 
 repeat_flag = 'Y'
@@ -176,7 +177,7 @@ comm_feats_50 = ['std_dias_pres',
 
 
 
-from configs import num_splits
+from configs import num_splits,data_setting
 num_files = num_splits
 train_or_test = 'train/'
 
@@ -257,6 +258,9 @@ for file_num in range(num_files):
                                  algorithm + '/' + feature_selection_method + \
                                  '/model_' + file_list[file_num][:-4] + '/'
     data_file = file_list[file_num]
+
+    # print()
+    # exit()
     print('Processing file ' + data_file)
     if not os.path.isdir(All_file_pickle_folder):
         print(All_file_pickle_folder)
@@ -268,14 +272,68 @@ for file_num in range(num_files):
     hyperparameters = {'classification_model__' + key: param_grid[key] for key in param_grid}
     def roc_auc_brier_score(y_true, y_pred):
         return roc_auc_score(y_true, y_pred)/brier_score_loss(y_true,y_pred)
+
+    import numpy as np
+    from sklearn.metrics import roc_auc_score
+
+    def make_patient_level_roc_auc_scorer(patient_ids):
+        """
+        Creates a custom scorer that computes ROC AUC on the patient level based on majority vote.
+        
+        Args:
+        patient_ids (array-like): Array of patient IDs corresponding to each row in the input data.
+        
+        Returns:
+        scorer (callable): Custom scorer compatible with scikit-learn's make_scorer function.
+        """
+        def patient_level_roc_auc(y_true, y_pred):
+            # Convert predictions to binary labels based on a threshold (e.g., 0.5 for probabilities)
+            y_pred_labels = (y_pred >= 0.5).astype(int)
+            
+            # Aggregate predictions by patient ID, finding the majority label for each patient
+            patient_predictions = {}
+            for patient_id, prediction in zip(patient_ids, y_pred_labels):
+                if patient_id not in patient_predictions:
+                    patient_predictions[patient_id] = []
+                patient_predictions[patient_id].append(prediction)
+            
+            patient_majority_label = {patient_id: np.argmax(np.bincount(labels))
+                                    for patient_id, labels in patient_predictions.items()}
+            
+            # Aggregate true labels by patient ID, assuming the true label is consistent for all rows of a patient
+            patient_true_label = {}
+            for patient_id, true_label in zip(patient_ids, y_true):
+                patient_true_label[patient_id] = true_label
+            
+            # Prepare lists of aggregated true labels and predicted labels for ROC AUC calculation
+            y_true_agg = [patient_true_label[pid] for pid in patient_predictions.keys()]
+            y_pred_agg = [patient_majority_label[pid] for pid in patient_predictions.keys()]
+            
+            # Calculate and return the ROC AUC score
+            return roc_auc_score(y_true_agg, y_pred_agg)
+        
+        return patient_level_roc_auc
+
     
+
     scoring = {'roc_auc_brier':make_scorer(roc_auc_brier_score,needs_proba= True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
     
-    
-    X,y,df_dataset, cv = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
-
+    if data_setting=='ehr':
+        X,y,df_dataset, cv = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+    elif data_setting=='vent':
+        obj = VentData(ventDataFolder)
+        
+        X,y,df_dataset, cv =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
+        patient_ids = df_dataset[pt_col].values
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        
+        scoring = {'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+    else:
+        pass
 
     print()
     if import_feature_list == 'Y':
@@ -306,7 +364,13 @@ for file_num in range(num_files):
 
         
     inner_cv = cv
-    
+    # print("K folds",inner_cv)
+
+    # for x1,y1 in inner_cv:
+    #     print(x1,len(x1),"x",y1,len(y1),"y",sep='\n###\n')
+    #     print(x1[17],y1[7],df_dataset.loc[x1[17],:],sep="^^^^^^^^^")
+    # print("Thisb is innercv",inner_cv,len(inner_cv),len(inner_cv[1][0]),len(inner_cv[1][1]))
+    # exit()
     
     if algorithm_no == 1:
         classification_model=RandomForestClassifier(random_state=1)
@@ -321,11 +385,12 @@ for file_num in range(num_files):
     noimb_pipeline = Pipeline([('classification_model', classification_model)])
     
     
-    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
+    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'patient_level_roc_auc_scorer', n_jobs=-1,error_score="raise",return_train_score=True)
     import time
     # startfit = time.time()
-    # print("This is ",X,y,sep="\n\n")
+    print("This is ",X,y,sep="\n\n")
     # exit()
+
     clf.fit(X, y)
     
     # endfit = time.time()

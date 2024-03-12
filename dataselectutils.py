@@ -97,15 +97,15 @@ test_folder =test_folder
 repeat_flag = 'Y'
 hyperparameter_catalog_RFE = {
 
-    'RF': {
-        'bootstrap': [True],
-        'max_depth': [10], # maximum depth of the tree
-        'max_features': ['log2'], # maximum number of features to use at each split
-        # 'min_samples_leaf': [5,10], # minimum number of samples to split a node
-        'min_samples_split': [8],#range(8,10,2),
-        'n_estimators': [100], # number of trees
-        'criterion' : ['gini','entropy']  # criterion for evaluating a split
-    }
+        'RF': {
+            'bootstrap': [True],
+            'max_depth': [10], # maximum depth of the tree
+            'max_features': ['log2'], # maximum number of features to use at each split
+            # 'min_samples_leaf': [5,10], # minimum number of samples to split a node
+            'min_samples_split': [8],#range(8,10,2),
+            'n_estimators': [100], # number of trees
+            'criterion' : ['gini','entropy']  # criterion for evaluating a split
+        }
 }
 
 hyperparameter_catalog = {
