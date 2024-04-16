@@ -227,15 +227,15 @@ if import_feature_list == 'Y':
     feature_selection_method = feature_selection_method
     feature_import_path = feature_import_path #'pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 
-resultdfcols = ["params","mean_fit_time","rank_test_roc_auc_brier","mean_test_roc_auc_brier","rank_test_roc_auc","mean_test_roc_auc","split0_test_roc_auc","split1_test_roc_auc","split2_test_roc_auc","split3_test_roc_auc","split4_test_roc_auc","rank_test_accuracy","mean_test_accuracy","rank_test_prc_auc","mean_test_prc_auc","rank_test_precision","mean_test_precision","rank_test_recall","mean_test_recall","rank_test_specificity","mean_test_specificity","rank_test_brier_score","mean_test_brier_score"]
-classification_metrics = ["mean_test_roc_auc_brier","mean_test_roc_auc","mean_test_accuracy","mean_test_prc_auc","mean_test_precision","mean_test_recall","mean_test_specificity","mean_test_brier_score"]
+resultdfcols = ["params","mean_fit_time","rank_test_roc_auc","mean_test_roc_auc","split0_test_roc_auc","split1_test_roc_auc","split2_test_roc_auc","split3_test_roc_auc","split4_test_roc_auc","rank_test_accuracy","mean_test_accuracy","rank_test_prc_auc","mean_test_prc_auc","rank_test_precision","mean_test_precision","rank_test_recall","mean_test_recall","rank_test_specificity","mean_test_specificity","rank_test_brier_score","mean_test_brier_score"]
+classification_metrics = ["mean_test_roc_auc","mean_test_accuracy","mean_test_prc_auc","mean_test_precision","mean_test_recall","mean_test_specificity","mean_test_brier_score"]
 # trainsplit_metrics = [m[:5] + 'train'+m[10:] for m in classification_metrics]
 # "mean_train_roc_auc","split1_train_roc_auc","split2_train_roc_auc","split3_train_roc_auc","split4_train_roc_auc",
 classification_metrics_ci = [m[5:] + ' 95% CI' for m in classification_metrics]
 
-forcols = pd.read_excel("/data1/srsrai/ehrdata/algorithm_selection/RF/statistical_feature_selection/fullbestmodels_cv.xlsx")
+forcols = pd.read_excel(project_folder+"/fullbestmodels_cv.xlsx")
 fullmodels_cv = pd.DataFrame(columns = forcols.columns)
-bestmodels_cv = pd.DataFrame(columns =resultdfcols+classification_metrics_ci)
+bestmodels_cv = pd.DataFrame(columns =["Filename"]+resultdfcols+classification_metrics_ci)
 
 # if args.featselection!='SFS':
 #     feature_selection_method = 'RFE'
@@ -249,6 +249,7 @@ for file_num in range(num_files):
     #     break
 
     start_time = time.time()
+    print("ssss",file_list,file_num)
     
     if import_feature_list == 'N':
         All_file_pickle_folder = project_folder +  'algorithm_selection/' + expt_name + "/" + \
@@ -257,16 +258,17 @@ for file_num in range(num_files):
         All_file_pickle_folder = project_folder +  '/algorithm_selection/' + expt_name + "/" + \
                                  algorithm + '/' + feature_selection_method + \
                                  '/model_' + file_list[file_num][:-4] + '/'
-    data_file = file_list[file_num]
+    
 
     # print()
     # exit()
+    data_file = file_list[file_num]
     print('Processing file ' + data_file)
     if not os.path.isdir(All_file_pickle_folder):
         print(All_file_pickle_folder)
         os.makedirs(All_file_pickle_folder)
     
-
+    
     from sklearn.metrics import brier_score_loss
     param_grid = hyperparameter_grid
     hyperparameters = {'classification_model__' + key: param_grid[key] for key in param_grid}
@@ -288,11 +290,14 @@ for file_num in range(num_files):
         """
         def patient_level_roc_auc(y_true, y_pred):
             # Convert predictions to binary labels based on a threshold (e.g., 0.5 for probabilities)
+            print(y_pred,"inside roc_auc y true y pred",y_pred.shape,patient_ids)
+            
             y_pred_labels = (y_pred >= 0.5).astype(int)
             
             # Aggregate predictions by patient ID, finding the majority label for each patient
             patient_predictions = {}
             for patient_id, prediction in zip(patient_ids, y_pred_labels):
+                print(patient_id, prediction)
                 if patient_id not in patient_predictions:
                     patient_predictions[patient_id] = []
                 patient_predictions[patient_id].append(prediction)
@@ -302,6 +307,7 @@ for file_num in range(num_files):
             
             # Aggregate true labels by patient ID, assuming the true label is consistent for all rows of a patient
             patient_true_label = {}
+            # exit()
             for patient_id, true_label in zip(patient_ids, y_true):
                 patient_true_label[patient_id] = true_label
             
@@ -316,54 +322,92 @@ for file_num in range(num_files):
 
     
 
-    scoring = {'roc_auc_brier':make_scorer(roc_auc_brier_score,needs_proba= True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+        
+    if data_setting=='ehr':
+        
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+        # scoring = {'roc_auc_brier':make_scorer(roc_auc_brier_score,needs_proba= True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+        #        'specificity': make_scorer(recall_score,pos_label=0),\
+        #        'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        # patient_ids = df_dataset[pt_col].values
+        print(test_patient_ids)
+        # exit()
+        print(patient_ids,set(patient_ids))
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
-    
-    if data_setting=='ehr':
-        X,y,df_dataset, cv = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
     elif data_setting=='vent':
         obj = VentData(ventDataFolder)
         
-        X,y,df_dataset, cv =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
+        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
         patient_ids = df_dataset[pt_col].values
         # print("patient ids",patient_ids,sep="#####$$$$$#####")
-        
-        scoring = {'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
     else:
-        pass
+        obj = VentData(ventDataFolder)
+        
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,give_pt=True)
+        # print(ehrX.columns,ventX.columns)
+        print("cv",cv)
+        # exit()
+        patient_ids = ventdf_dataset[pt_col].values
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        # print(X)
+        y=venty
+
+        print(X.columns,len(X),len(y))
+    # print(y.shape)
+    # exit()
+    
 
     print()
-    if import_feature_list == 'Y':
+    if data_setting=='ehr' or data_setting=='both':
+        print("inside inmport featu")
+        if import_feature_list == 'Y':
 
-        if os.path.exists(feature_import_path):
-            feature_dict = joblib.load(feature_import_path)
-            try:
-                selected_features = feature_dict[data_file[:-4]]
-                if selected_features==[]:
-                    print("no feature was selected, passing whole data instead")
+            if os.path.exists(feature_import_path):
+                feature_dict = joblib.load(feature_import_path)
+                try:
+                    selected_features = feature_dict[data_file[:-4]]
+                    if selected_features==[]:
+                        print("no feature was selected, passing whole data instead")
+                        selected_features = X.columns
+                except:
+                    print("probably key error passing all features instead")
                     selected_features = X.columns
-            except:
-                print("probably key error passing all features instead")
-                selected_features = X.columns
-        
             
-        else:
-            print("cant load the feature selection path")
-        
-        if use_prefered_cols:
-            selected_features = prefered_columns
-        print("selected features are ",len(selected_features),selected_features)
-        X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]
-    column_list =[]
-    column_list.append(X.columns.tolist())
-    print(column_list)
-    filtered_col_list.append(X.columns.tolist())
+                
+            else:
+                print("cant load the feature selection path")
+            
+            if use_prefered_cols:
+                selected_features = prefered_columns
+            print("selected features are ",len(selected_features),selected_features)
+            if data_setting=="both":
+                X = X[[pt_col]+selected_features]#[list(X.columns[:51]) + list(selected_features)]
+                X = pd.merge(ventX, X, on=pt_col, how='left')
+                print("after merging ehr and vent data",X.shape)
+                # y = venty
+                # print(y.shape,"sjsjmdaokp")
+            else:
+                X = X[selected_features]
+        column_list =[]
+        column_list.append(X.columns.tolist())
+        # print(column_list)
+        filtered_col_list.append(X.columns.tolist())
 
         
     inner_cv = cv
+    
     # print("K folds",inner_cv)
 
     # for x1,y1 in inner_cv:
@@ -385,10 +429,16 @@ for file_num in range(num_files):
     noimb_pipeline = Pipeline([('classification_model', classification_model)])
     
     
-    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'patient_level_roc_auc_scorer', n_jobs=-1,error_score="raise",return_train_score=True)
+    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
     import time
     # startfit = time.time()
-    print("This is ",X,y,sep="\n\n")
+    # print("This is ",X,y,sep="\n\n")
+    print(list(X.columns),len(X),len(y))
+
+    if data_setting=='both':
+        X = X.drop(pt_col,axis=1)
+
+    print(list(X.columns),len(X),len(y))
     # exit()
 
     clf.fit(X, y)
@@ -401,7 +451,7 @@ for file_num in range(num_files):
     
      
     results_df = pd.DataFrame(clf.cv_results_)
-    results_df = results_df.sort_values(by=["rank_test_roc_auc"])
+    results_df = results_df.sort_values(by=["rank_test_roc_auc"])#["rank_test_roc_auc"]) #change this when doing EHR
     results_df = results_df.set_index(
         results_df["params"].apply(lambda x: "_".join(str(val) for val in x.values()))
     ).rename_axis("kernel")
@@ -455,10 +505,10 @@ for file_num in range(num_files):
     # print("\n\n\n\n",endcal-calc1,"calculation time ")
     # print(tmp1)
     # exit() 
-    tmp_bootstrap_summary = pd.DataFrame([tmp1[0]],columns=resultdfcols+classification_metrics_ci)
+    tmp_bootstrap_summary = pd.DataFrame([[data_file.split("/")[-1]]+tmp1[0]],columns=["Filename"]+resultdfcols+classification_metrics_ci)
     tmp_bootstrap_summary.to_excel("temp.xlsx")
     # exit()
-    bestmodels_cv=bestmodels_cv.append(tmp_bootstrap_summary,ignore_index= True)
+    bestmodels_cv=pd.concat([bestmodels_cv,tmp_bootstrap_summary],ignore_index= True)
     
     # print("best model",temp[temp["params"]==clf.best_params_])
     # print(results_df.columns)
@@ -472,7 +522,7 @@ for file_num in range(num_files):
     temppath = project_folder + 'algorithm_selection/'+ expt_name + '/' + algorithm + '/' + feature_selection_method 
     bestmodels_cv.to_excel(temppath+"/bestmodels_cv.xlsx")
     
-    fullmodels_cv=fullmodels_cv.append(temp,ignore_index=True)
+    fullmodels_cv=pd.concat([fullmodels_cv,temp],ignore_index=True)
     fullmodels_cv.to_excel(temppath+"/fullbestmodels_cv.xlsx")
     # exit()
     joblib.dump(model_to_choose, All_file_pickle_folder+model_file)

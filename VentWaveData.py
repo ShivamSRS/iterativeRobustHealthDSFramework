@@ -12,6 +12,85 @@ import ast
 import time
 
 
+import pandas as pd
+import os
+from datetime import datetime, timedelta
+
+# patient_id = 1
+# # Path to the directory containing patient folders
+# base_directory_median = '/data0/ehrdata/ventDataFiles_median' #'/path/to/patient/folders/'
+# base_directory = '/data0/vwd_deidentified_data'
+# # Read the index time dataframe
+# index_time_df = pd.read_csv('/data0/vwd_deidentified_data/deidentified_cohort_list.csv')#'/path/to/index_time.csv')
+
+# # Function to parse datetime with milliseconds
+# def parse_datetime_with_ms(date_str):
+#     print(datetime.strptime(date_str, '%Y-%m-%d-%H-%M-%S.%f'))
+#     try:
+#         return datetime.strptime(date_str, '%Y-%m-%d-%H-%M-%S.%f')#'%Y-%m-%d-%H:%M:%S.%f')
+#     except ValueError:
+#         print(ValueError,date_str)
+#         return None
+
+# # Iterate through each patient's data
+# for patient_id in index_time_df['deidentified_study_id']:
+#     if patient_id//10==0:
+#         num_pt_formatted ='00'+str(patient_id)
+#     elif patient_id//100==0 and patient_id//10!=0:
+#         num_pt_formatted ='0'+str(patient_id)
+#     elif patient_id//1000==0 and patient_id//100!=0:
+#         num_pt_formatted =str(patient_id)
+
+#     # patient_folder = os.path.join(base_directory, num_pt_formatted)
+#     consolidateDF_path = glob.glob(base_directory+'/{}/*{}*consolidate*.csv'.format(num_pt_formatted,num_pt_formatted))[0]
+#     # os.path.join(patient_folder, 'consolidateDF.csv')
+#     print(consolidateDF_path)
+#     median_path = os.path.join(base_directory_median,str(patient_id), 'patientid_{}_vwd_summary.csv'.format(patient_id))
+#     # base_directory_median
+
+#     # Check if the required files exist
+#     if not os.path.exists(consolidateDF_path) or not os.path.exists(median_path):
+#         continue
+    
+#     # Read the consolidateDF and median dataframes
+#     consolidateDF = pd.read_csv(consolidateDF_path)
+#     median_df = pd.read_csv(median_path)
+    
+#     # Find the actual end time from consolidateDF
+#     last_valid_time = consolidateDF.dropna(subset=['breath_datetime']).iloc[-1]['breath_datetime']
+#     print("last vlaid time",last_valid_time)
+#     actual_end_time = parse_datetime_with_ms(last_valid_time)
+#     print("end time acrtual",actual_end_time)
+#     # exit()
+#     # Get the index_vent_start_time for the patient
+#     patient_index_time = index_time_df[index_time_df['deidentified_study_id'] == patient_id]
+#     vent_start_time_str = consolidateDF.iloc[1]['breath_datetime']#patient_index_time['index_vent_start_time'].values[0]
+#     vent_start_time = datetime.strptime(vent_start_time_str, '%Y-%m-%d-%H-%M-%S.%f')
+#     print("start",vent_start_time)
+#     # print("start start",consolidateDF.iloc[1]['breath_datetime'])
+#     # exit()  
+#     # Calculate vent start time + 24 hours
+#     vent_end_time = vent_start_time + timedelta(days=1)
+#     print("vent end time",vent_end_time)
+#     # print("first and last",median_df['absolute_time'][0],)
+#     # exit()
+#     # Convert the 'BS' time in median dataframe from seconds to timedelta
+#     median_df['timedelta'] = pd.to_timedelta(median_df['BS'], unit='s')
+    
+#     # Calculate the absolute times for median data points
+#     median_df['absolute_time'] = vent_start_time + median_df['timedelta']
+#     print("median first and last",median_df['absolute_time'][0],median_df['absolute_time'])
+
+#     # Filter the rows in median dataframe
+#     # print(median_df['absolute_time'],vent_start_time,vent_end_time,actual_end_time)
+#     filtered_median_df = median_df[median_df['absolute_time'] <= vent_end_time]
+#     print("first and last",filtered_median_df['absolute_time'][0],filtered_median_df['absolute_time'])
+#     exit()
+#     # Optionally, save the filtered dataframe
+#     print("saving time ")
+#     filtered_median_df.to_csv(os.path.join(base_directory_median,str(patient_id), 'filtered_median.csv'), index=False)
+
+# exit() 
 # filepath = "/data/vwd-deidentified-data/011/011-consolidate-vwd-2009-03-03-22-33-02.957.csv"
 # breath_meta = get_file_breath_meta(filepath, to_data_frame=True,new_format=True)
 
@@ -209,7 +288,7 @@ class VentData:
 
         return train_patients,test_patients
 
-    def get_train_test_file(self,file_num,folder,time_window='',train = True):
+    def get_train_test_file(self,file_num,folder,time_window='',train = True,give_pt=False):
         """
         pass time window as 6h or 24h as a string
         """
@@ -244,7 +323,8 @@ class VentData:
 
 
                 CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
-                # print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+                print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+                # exit()
                 # break
                 train_pigs = []
                 for l in range(len(CV_train_pts_list)):
@@ -280,14 +360,16 @@ class VentData:
 
             # print("K folds",k_folds)
 
-
-            columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            if give_pt==False:
+                columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            else:
+                columns_to_include = [col for col in train_dataset.columns if col not in [label_col]]
             # for x,y in k_folds:
                 # print(x,len(x),"x",y,len(y),"y",sep='\n###\n')
                 # print(x[2000],y[2000],train_dataset.loc[x[2000],:],sep="^^^^^^^^^")
             X,y = train_dataset.loc[:,columns_to_include],train_dataset[label_col] 
             # print("x",X)
-            return X,y,train_dataset,k_folds
+            return X,y,train_dataset,k_folds,train_pigs
 
 
 
@@ -320,6 +402,9 @@ class VentData:
             X,y = test_dataset.loc[:,columns_to_include],test_dataset[label_col] 
             print("x",X)
             return X,y,test_dataset
+
+    # def correct:
+        
 
         
 

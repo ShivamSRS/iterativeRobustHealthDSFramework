@@ -1,5 +1,5 @@
 #modify the feature method a t three places
-expt_name = "Ventilator_Waveform_2"
+expt_name = "12h_Ventilator_Waveform"
 feature_selection_method = "all_features"
 use_features='N'
 if feature_selection_method=='statistical_feature_selection':
@@ -33,7 +33,7 @@ CFS_300_75_Alt = CFS_300_75_True + ["sf_max","fio2_max","spo2_mean","fio2_min","
 CFS_400_75_True = ["lab_pf_ratio_res_min"]
 CFS_400_75_Alt = CFS_400_75_True + ["sf_min","spo2_mean","lab_pf_ratio_res_min","lab_pf_ratio_res_max","sf97","sf_median","spo2_min","lab_pf_ratio_res_median"]
 
-prefered_columns =CFS_300_50_True#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
+prefered_columns =CFS_400_50_Alt#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
 
 
 
@@ -42,7 +42,7 @@ prefered_columns =CFS_300_50_True#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_1
 remove_diagnostic_features = False
 diagnostic_features = ['lab_vbg_pco2_res','lab_abg_ph_res','lab_abg_po2_res', 'lab_abg_pco2_res_mean',	'lab_abg_pco2_res_median',	'lab_abg_pco2_res_min',	'lab_abg_pco2_res_max',	'lab_abg_pco2_res_stddev',	'lab_abg_pco2_res_slope',	'lab_pf_ratio_res_mean',	'lab_pf_ratio_res_median',	'lab_pf_ratio_res_min',	'lab_pf_ratio_res_max',	'lab_pf_ratio_res_stddev',	'lab_pf_ratio_res_slope']
 
-mutual_info_cols = ['POS_DIST_OBSTETRICS_ZP' ,'ACS_PCT_MEDICAID_ANY_BELOW64_ZC','ACS_PCT_ENGLISH_ZC','ACS_TOT_OWN_CHILD_BELOW17_ZC','ACS_TOT_POP_US_ABOVE1_ZC']
+# mutual_info_cols = ['POS_DIST_OBSTETRICS_ZP' ,'ACS_PCT_MEDICAID_ANY_BELOW64_ZC','ACS_PCT_ENGLISH_ZC','ACS_TOT_OWN_CHILD_BELOW17_ZC','ACS_TOT_POP_US_ABOVE1_ZC']
 #mutual_info_cols2=['superimposed with SF w/ SF', 'chronic hypertension', 'POS_DIST_OBSTETRICS_ZP', 'N_HDP Diag', 'ACS_TOT_OWN_CHILD_BELOW17_ZC', 'Multiple', 'Y_ECG', 'ACS_PCT_GRADUATE_DGR_ZC', 'No Episode', 'N_ECG']
 use_prefered_cols = False
 

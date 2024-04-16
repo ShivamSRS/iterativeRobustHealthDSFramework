@@ -464,7 +464,7 @@ def RFE_features(data_folder, file_num, k,label_col,pt_col, hyperparams = 'RF'):
         return rfe_features
 
 
-def get_dataset(data_file,file_num,label_col,pt_col):
+def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
     #Processing input file for ingestion into training functions
 
 
@@ -485,10 +485,14 @@ def get_dataset(data_file,file_num,label_col,pt_col):
     all_fold_pigs = [fold_1_pigs,fold_2_pigs,fold_3_pigs,fold_4_pigs,fold_5_pigs]
 
     k_folds = []
+    foldwise_train_pigs = []
+    foldwise_test_pigs = []
     for fold in all_fold_pigs:
 
         train_pig_list = [f for f in all_fold_pigs if f!=fold]
         train_pigs = []
+        foldwise_train_pigs.append(train_pig_list)
+        foldwise_test_pigs.append(fold)
         for l in range(len(train_pig_list)):
             train_pigs+=train_pig_list[l]
 
@@ -523,7 +527,7 @@ def get_dataset(data_file,file_num,label_col,pt_col):
         X = X.drop(['Unnamed: 0'], axis =1)
     if 'Unnamed: 0.1' in X.columns.tolist():
         X = X.drop(['Unnamed: 0.1'], axis =1)
-    if pt_col in X.columns.tolist():
+    if pt_col in X.columns.tolist() and give_pt==False:
         X = X.drop([pt_col], axis =1)
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)
@@ -539,7 +543,7 @@ def get_dataset(data_file,file_num,label_col,pt_col):
         #X = df[comm_feats_90]
         X = df[comm_feats_50]
 
-    return X, y, df, k_folds
+    return X, y, df, k_folds,foldwise_train_pigs,foldwise_test_pigs
 
 def get_test_dataset(data_file,label_col,pt_col):
     #Processing input file for ingestion into training functions
