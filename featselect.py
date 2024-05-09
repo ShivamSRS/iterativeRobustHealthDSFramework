@@ -321,7 +321,7 @@ for file_num in range(num_files):
         return patient_level_roc_auc
 
     
-
+    print("This is the modality setting",data_setting)
         
     if data_setting=='ehr':
         
@@ -331,6 +331,10 @@ for file_num in range(num_files):
         #        'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
         # patient_ids = df_dataset[pt_col].values
         print(test_patient_ids)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
         # exit()
         print(patient_ids,set(patient_ids))
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
@@ -339,13 +343,67 @@ for file_num in range(num_files):
     elif data_setting=='vent':
         obj = VentData(ventDataFolder)
         
-        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
+        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
         patient_ids = df_dataset[pt_col].values
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        exit()
+
         # print("patient ids",patient_ids,sep="#####$$$$$#####")
         #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+
+    elif data_setting=='vent_summary':
+        obj = VentData(ventDataFolder)
+        
+        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
+        patient_ids = df_dataset[pt_col].values
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+
+    elif data_setting=='both_summary':
+        obj = VentData(ventDataFolder)
+        
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,give_pt=True)
+        # print(ehrX.columns,ventX.columns)
+        print("cv",cv)
+        # exit()
+        patient_ids = ventdf_dataset[pt_col].values
+        print("patient ids",patient_ids,sep="#####$$$$$#####")
+        # Counting 1s and 0s
+        count_ones = venty.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of EHR 1s:", count_ones)
+        # print("Number of 0s:", count_zeros)
+        # exit()
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        # print(X)
+        y=venty
+
+        print(X.columns,len(X),len(y))
+
     else:
         obj = VentData(ventDataFolder)
         
@@ -356,8 +414,18 @@ for file_num in range(num_files):
         print("cv",cv)
         # exit()
         patient_ids = ventdf_dataset[pt_col].values
-        # print("patient ids",patient_ids,sep="#####$$$$$#####")
-        
+        print("patient ids",patient_ids,sep="#####$$$$$#####")
+        # Counting 1s and 0s
+        count_ones = venty.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of EHR 1s:", count_ones)
+        # print("Number of 0s:", count_zeros)
+        exit()
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
@@ -367,10 +435,11 @@ for file_num in range(num_files):
         print(X.columns,len(X),len(y))
     # print(y.shape)
     # exit()
+    print()
     
 
     print()
-    if data_setting=='ehr' or data_setting=='both':
+    if data_setting=='ehr' or data_setting=='both' or data_setting=='both_summary':
         print("inside inmport featu")
         if import_feature_list == 'Y':
 
@@ -392,20 +461,22 @@ for file_num in range(num_files):
             if use_prefered_cols:
                 selected_features = prefered_columns
             print("selected features are ",len(selected_features),selected_features)
-            if data_setting=="both":
+            if data_setting=="both" or data_setting=='both_summary':
                 X = X[[pt_col]+selected_features]#[list(X.columns[:51]) + list(selected_features)]
                 X = pd.merge(ventX, X, on=pt_col, how='left')
                 print("after merging ehr and vent data",X.shape)
-                # y = venty
-                # print(y.shape,"sjsjmdaokp")
+                y = venty
+                print(y.shape,"sjsjmdaokp",X.shape)
+                print(X.columns,y)
             else:
                 X = X[selected_features]
+        # exit()
         column_list =[]
         column_list.append(X.columns.tolist())
         # print(column_list)
         filtered_col_list.append(X.columns.tolist())
 
-        
+    # exit()
     inner_cv = cv
     
     # print("K folds",inner_cv)
@@ -435,7 +506,7 @@ for file_num in range(num_files):
     # print("This is ",X,y,sep="\n\n")
     print(list(X.columns),len(X),len(y))
 
-    if data_setting=='both':
+    if data_setting=='both' or data_setting=='both_summary':
         X = X.drop(pt_col,axis=1)
 
     print(list(X.columns),len(X),len(y))

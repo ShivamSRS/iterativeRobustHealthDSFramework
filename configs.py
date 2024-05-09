@@ -1,21 +1,21 @@
 #modify the feature method a t three places
-expt_name = "12h_Ventilator_Waveform"
-feature_selection_method = "all_features"
-use_features='N'
+expt_name = "48h_Ventilator_Waveform_summary_EHR_both_CFS_400_50_Alt"
+feature_selection_method = "CFS_400_50_Alt"
+use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
 else:
     suffix_str='_10'
 
-data_setting = "vent"
+data_setting = "both_summary"
 """
-Choose from vent, ehr, both
+Choose from vent, ehr, both, vent_summary, both_summary
 """
 
 no_of_pts = 240  
 prevalence = 0.5
 Unbalanced = False
-Downsample_25 = True
+Downsample_25 = False
   
 feature_import_path ='pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 algorithm = 'RF'
@@ -35,6 +35,14 @@ CFS_400_75_Alt = CFS_400_75_True + ["sf_min","spo2_mean","lab_pf_ratio_res_min",
 
 prefered_columns =CFS_400_50_Alt#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
 
+#without ABG VBG values
+
+# CFS_300_50_True = ["sf_median","sf_min","osi_max","sf97","respiratory_rate_mean","spo2_min","total_output_ml_slope","sf_max","bp_map_cuff_max","bp_cuff_diastolic_max","bp_cuff_systolic_max"]
+# CFS_300_50_Alt = CFS_300_50_True + ["sf_mean","osi_median","osi_stddev","fio2_mean","spo2_mean","osi_mean","osi97","fio2_median","osi_min","spo2_median","bp_map_a_line","sf_slope","lab_chloride_res_median","temperature_celsius_stddev","fio2_slope","fio2_max","respiratory_rate_max","fio2_min","respiratory_rate_min","bp_map_cuff_min","bp_cuff_systolic_min","total_output_ml_stddev","bp_cuff_diastolic_min","bp_cuff_systolic_mean","lab_neutrophil_abs_auto_res_max"]
+
+# CFS_400_50_True = ["sf_median","sf_min","respiratory_rate_mean","sf97"]
+# CFS_400_50_Alt = CFS_400_50_True + ["spo2_mean","osi97","fio2_mean","osi_median","osi_mean","sf_mean","osi_max","fio2_mean","spo2_min","bp_map_cuff_max","sf_max","bp_cuff_diastolic_max","bp_cuff_systolic_max","total_output_ml_slope"]
+
 
 
 
@@ -44,7 +52,7 @@ diagnostic_features = ['lab_vbg_pco2_res','lab_abg_ph_res','lab_abg_po2_res', 'l
 
 # mutual_info_cols = ['POS_DIST_OBSTETRICS_ZP' ,'ACS_PCT_MEDICAID_ANY_BELOW64_ZC','ACS_PCT_ENGLISH_ZC','ACS_TOT_OWN_CHILD_BELOW17_ZC','ACS_TOT_POP_US_ABOVE1_ZC']
 #mutual_info_cols2=['superimposed with SF w/ SF', 'chronic hypertension', 'POS_DIST_OBSTETRICS_ZP', 'N_HDP Diag', 'ACS_TOT_OWN_CHILD_BELOW17_ZC', 'Multiple', 'Y_ECG', 'ACS_PCT_GRADUATE_DGR_ZC', 'No Episode', 'N_ECG']
-use_prefered_cols = False
+use_prefered_cols = True
 
 
 """'statistical_feature_selection': 1,
