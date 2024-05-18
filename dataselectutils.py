@@ -476,9 +476,10 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
     print(data_file,"FOld info file is",os.path.join(project_folder,fold_information_file))
 
     fold_df = pd.read_csv(os.path.join(project_folder,fold_information_file)) #reading file specifying which pigs belong to which splits
-    # print(file_num+1,fold_df[fold_df['filename']==data_file.split("/")[-1]],sep="\n\n")
+    print(file_num+1,fold_df[fold_df['filename']==data_file.split("/")[-1]],sep="\n\n")
     folds_for_current_split = fold_df[fold_df['filename']==data_file.split("/")[-1]]
     print("########")
+    # exit()
     print(fold_df[fold_df['filename']==data_file.split("/")[-1]]['filename'],file_num,data_file.split("/")[-1],folds_for_current_split)
     print("########")
     fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])

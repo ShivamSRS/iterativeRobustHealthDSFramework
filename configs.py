@@ -1,5 +1,5 @@
 #modify the feature method a t three places
-expt_name = "48h_Ventilator_Waveform_summary_EHR_both_CFS_400_50_Alt"
+expt_name = "MEDIAN_ONLY_48h_Ventilator_Waveform_summary_EHR_both_CFS_400_50_True"
 feature_selection_method = "CFS_400_50_Alt"
 use_features='Y'
 if feature_selection_method=='statistical_feature_selection':

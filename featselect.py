@@ -343,24 +343,7 @@ for file_num in range(num_files):
     elif data_setting=='vent':
         obj = VentData(ventDataFolder)
         
-        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
-        patient_ids = df_dataset[pt_col].values
-        count_ones = y.value_counts()
-        # count_zeros = y.count(0)
-
-        print("Number of 1s:", count_ones)
-        exit()
-
-        # print("patient ids",patient_ids,sep="#####$$$$$#####")
-        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
-        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
-               'specificity': make_scorer(recall_score,pos_label=0),\
-               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
-
-    elif data_setting=='vent_summary':
-        obj = VentData(ventDataFolder)
-        
-        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median)
+        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window)
         patient_ids = df_dataset[pt_col].values
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
@@ -374,13 +357,35 @@ for file_num in range(num_files):
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
 
+    elif data_setting=='vent_summary':
+        
+        obj = VentData(ventDataFolder)
+        
+        X,y,df_dataset, cv,train_pigs =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,median_only=True)
+        patient_ids = df_dataset[pt_col].values
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+        print(X.columns)
+        print("Number of 1s:", count_ones)
+        print(len(y),len(X))
+        print(X.head())
+        # X.to_csv("48h_summary_vent_features_{}.csv".format(int(data_file[-data_file[::-1].find("_"):data_file.find(".")])))
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+
     elif data_setting=='both_summary':
         obj = VentData(ventDataFolder)
         
         X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
         print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
-        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,give_pt=True)
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True,median_only=True)
         # print(ehrX.columns,ventX.columns)
+        print(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),os.path.join(project_folder,train_or_test,time_window,data_file))
         print("cv",cv)
         # exit()
         patient_ids = ventdf_dataset[pt_col].values
@@ -409,7 +414,7 @@ for file_num in range(num_files):
         
         X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
         print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
-        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,give_pt=True)
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True)
         # print(ehrX.columns,ventX.columns)
         print("cv",cv)
         # exit()
@@ -527,34 +532,7 @@ for file_num in range(num_files):
         results_df["params"].apply(lambda x: "_".join(str(val) for val in x.values()))
     ).rename_axis("kernel")
 
-    # print(inner_cv)
-    # clf.best_index_ = results_df["rank_test_roc_auc"].argmin()
-    # print(results_df["params"][clf.best_index_])
-    # from sklearn.metrics import accuracy_score,roc_auc_score,precision_score,recall_score,average_precision_score
-
-    
-    # noimb_pipeline.fit(X.loc[X.index[inner_cv[0][0]],:],y.loc[y.index[inner_cv[0][0]],:])
-    # noimb_pipeline.set_params(**results_df["params"][clf.best_index_])
-    # y_pred1,y_pred1_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[0][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[0][0]],:])
-    
-    # print("1",accuracy_score(y1,y_pred1),roc_auc_score(y1,y_pred1_proba))
-    # exit()
-    # y_pred2,y_pred2_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[1][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[1][0]],:])
-    # y_pred3,y_pred3_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[2][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[2][0]],:])
-    # y_pred4,y_pred4_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[3][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[3][0]],:])
-    # y_pred5,y_pred5_proba = noimb_pipeline.predict(X.loc[X.index[inner_cv[4][0]],:]),noimb_pipeline.predict_proba(X.loc[X.index[inner_cv[4][0]],:])
-
-    # y1,y2,y3,y4,y5 = y.loc[y.index[inner_cv[0][0]],:],y.loc[y.index[inner_cv[1][0]],:],y.loc[y.index[inner_cv[2][0]],:],y.loc[y.index[inner_cv[3][0]],:],y.loc[y.index[inner_cv[4][0]],:]
-    # print("1",accuracy_score(y1,y_pred1),roc_auc_score(y1,y_pred1_proba))
-    # print("2",accuracy_score(y2,y_pred2),roc_auc_score(y2,y_pred2_proba))
-    # print("3",accuracy_score(y3,y_pred3),roc_auc_score(y3,y_pred3_proba))
-    # print("4",accuracy_score(y4,y_pred4),roc_auc_score(y4,y_pred4_proba))
-    # print("5",accuracy_score(y5,y_pred5),roc_auc_score(y5,y_pred5_proba))
-    # print(results_df)
-    # print(results_df[results_df["params"]==clf.best_params_])
-    # results_df[results_df["params"]==clf.best_params_].to_excel("temp.xlsx")
-    # print(results_df.loc[clf.best_index_,:])
-    # exit()
+   
     
     temp = results_df[results_df["params"]==clf.best_params_]
 

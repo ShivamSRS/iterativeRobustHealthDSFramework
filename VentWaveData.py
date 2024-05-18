@@ -163,7 +163,7 @@ class VentData:
         
     
     
-    def analyse_breath_missing_report(self,time_window='48h'):
+    def analyse_breath_missing_report(self,time_window):
         missingReport = pd.DataFrame(columns=['deidentified_study_id','mean_flow_from_pef','inst_RR','minF_to_zero','pef_+0.16_to_zero','iTime','eTime','I:E ratio','dyn_compliance','tve:tvi ratio','stat_compliance','resist'])
         for i in range(1,240+1):
             filepath = os.path.join(ventDataFiles_median,str(i),"patientid_{}_vwd_summary.csv".format(i))
@@ -289,13 +289,19 @@ class VentData:
                     train_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
                     tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
                     if time_window =='' or time_window=='48h':
+                        # print("time iwndo is 48h")
                         tempFile = tempFile[tempFile['BE']<86400]
+                        # print(len(tempFile))
                     elif time_window =='12h' or time_window=='30h':
+                        # print("time iwndo is ",time_window)
                         tempFile = tempFile[tempFile['BE']<21600]
+                        # print(len(tempFile))
                     else:
+                        # print("why is this coming here?")
                         tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                        # print(len(tempFile))
                     # print(tempFile.columns)
-                    
+                    # exit()
                     tempFile = tempFile[[pt_col,label_col]+self.vent_features]
                     train_dataset = pd.concat([train_dataset,tempFile],axis=0)
                     
@@ -361,7 +367,7 @@ class VentData:
             print("x",X)
             return X,y,test_dataset
     
-    def get_train_test_file_summary(self,filename,file_num,folder,time_window='',train = True,give_pt=False):
+    def get_train_test_file_summary(self,filename,file_num,folder,time_window='',train = True,give_pt=False,median_only=False):
         """
         pass time window as 6h or 24h as a string
         """
@@ -379,40 +385,53 @@ class VentData:
                     tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
                     
                     if time_window =='' or time_window=='48h':
+                        # print("time iwndo is 48h")
                         tempFile = tempFile[tempFile['BE']<86400]
+                        # print(len(tempFile))
                     elif time_window =='12h' or time_window=='30h':
+                        # print("time iwndo is ",time_window)
                         tempFile = tempFile[tempFile['BE']<21600]
+                        # print(len(tempFile))
                     else:
+                        # print("why is this coming here?")
                         tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                        # print(len(tempFile))
                     # print(tempFile.columns)
+                    # exit()
                     
                     tempFile = tempFile[[pt_col,label_col,'rel_time_at_BS']+self.vent_features]
                     new_values=[]
 
                     df =tempFile
+                    if median_only==False:
+                        statistics = pd.DataFrame({
+                            'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
+                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                            'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
+                            'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
+                            'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
+                        })
+                    else:
+                        statistics = pd.DataFrame({
+                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                        })
 
-                    statistics = pd.DataFrame({
-                        'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
-                        'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
-                        'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
-                        'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
-                        'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
-                    })
-
+                    
                     # Prepare a DataFrame to collect all statistics
                     all_stats = {pt_col:tempFile[pt_col][0],label_col:tempFile[label_col][0]}
 
-                    # Function to calculate slopes for each column
-                    def calculate_slope(y, x=df['rel_time_at_BS']):
-                        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-                        return slope
+                    if median_only==False:
+                        # Function to calculate slopes for each column
+                        def calculate_slope(y, x=df['rel_time_at_BS']):
+                            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+                            return slope
 
-                    # Append slope to statistics
-                    # print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
-                    statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
-                    # statistics = statistics.T
-                    # print(statistics['slope'])
-                    # exit()
+                        # Append slope to statistics
+                        # print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
+                        statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
+                        # statistics = statistics.T
+                        # print(statistics['slope'])
+                        # exit()
 
                     
                     # Flatten statistics into a single row with concatenated names
@@ -490,27 +509,33 @@ class VentData:
 
                     df =tempFile
 
-                    statistics = pd.DataFrame({
-                        'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
-                        'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
-                        'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
-                        'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
-                        'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
-                    })
+                    if median_only==False:
+                        statistics = pd.DataFrame({
+                            'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
+                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                            'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
+                            'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
+                            'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
+                        })
+                    else:
+                        statistics = pd.DataFrame({
+                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                        })
 
                     # Prepare a DataFrame to collect all statistics
                     all_stats = {pt_col:tempFile[pt_col][0],label_col:tempFile[label_col][0]}
 
-                    # Function to calculate slopes for each column
-                    def calculate_slope(y, x=df['rel_time_at_BS']):
-                        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-                        return slope
+                    if median_only==False:
+                        # Function to calculate slopes for each column
+                        def calculate_slope(y, x=df['rel_time_at_BS']):
+                            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+                            return slope
 
-                    # Append slope to statistics
-                    print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
-                    statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
-                    # statistics = statistics.T
-                    # print(statistics['slope'])
+                        # Append slope to statistics
+                        print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
+                        statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
+                        # statistics = statistics.T
+                        # print(statistics['slope'])
 
                     
                     # Flatten statistics into a single row with concatenated names
