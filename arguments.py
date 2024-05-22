@@ -1,6 +1,6 @@
-data_files = ['ehr48h_summary_imputed.csv']
+data_files = ['ehr12h_summary_imputed.csv']
 project_folder = '/data0/ehrdata/'#'/data0/ehrdata2/'
-time_window = ''
+time_window = '12h'
 data_folder = project_folder + 'datafile/' + time_window
 train_folder = project_folder + 'train/' + time_window
 test_folder = project_folder + 'test/' +time_window

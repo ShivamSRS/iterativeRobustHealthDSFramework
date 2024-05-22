@@ -347,7 +347,7 @@ for file_num in range(num_files):
         patient_ids = df_dataset[pt_col].values
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
-
+        print(df_dataset[pt_col].value_counts(),len(df_dataset))
         print("Number of 1s:", count_ones)
         # exit()
 
@@ -414,9 +414,9 @@ for file_num in range(num_files):
         
         X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
         print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
-        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True)
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True)
         # print(ehrX.columns,ventX.columns)
-        print("cv",cv)
+        print("cv",cv,len(X))
         # exit()
         patient_ids = ventdf_dataset[pt_col].values
         print("patient ids",patient_ids,sep="#####$$$$$#####")
@@ -429,8 +429,9 @@ for file_num in range(num_files):
         # count_zeros = y.count(0)
 
         print("Number of EHR 1s:", count_ones)
+        print("Number o:", len(ventX))
         # print("Number of 0s:", count_zeros)
-        exit()
+        # exit()
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
