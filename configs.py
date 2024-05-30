@@ -1,5 +1,5 @@
 #modify the feature method a t three places
-expt_name = "12h_Ventilator_Waveform_and_EHR_400_50_True"
+expt_name = "OS_30h_Ventilator_Waveform_and_EHR_400_50_True"
 feature_selection_method = "CFS_400_50_True"
 use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
@@ -7,14 +7,14 @@ if feature_selection_method=='statistical_feature_selection':
 else:
     suffix_str='_10'
 
-data_setting = "both"
+data_setting = "oversample_both"
 """
-Choose from vent, ehr, both, vent_summary, both_summary
+Choose from vent, ehr, both, vent_summary, both_summary,oversample_both
 """
 
 no_of_pts = 240  
-prevalence = 0.5
-Unbalanced = False
+prevalence = 0.25
+Unbalanced = True
 Downsample_25 = False
   
 feature_import_path ='pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)

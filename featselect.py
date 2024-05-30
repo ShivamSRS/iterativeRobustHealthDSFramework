@@ -326,10 +326,7 @@ for file_num in range(num_files):
     if data_setting=='ehr':
         
         X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
-        # scoring = {'roc_auc_brier':make_scorer(roc_auc_brier_score,needs_proba= True),'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
-        #        'specificity': make_scorer(recall_score,pos_label=0),\
-        #        'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
-        # patient_ids = df_dataset[pt_col].values
+        
         print(test_patient_ids)
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
@@ -356,7 +353,14 @@ for file_num in range(num_files):
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
-
+    elif data_setting=='oversample_both':
+        obj = VentData(ventDataFolder)
+        X,y,df_dataset, cv =obj.get_oversample_vent_ehr_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window)
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        print(cv)
+        # exit()   
     elif data_setting=='vent_summary':
         
         obj = VentData(ventDataFolder)
@@ -514,11 +518,15 @@ for file_num in range(num_files):
 
     if data_setting=='both' or data_setting=='both_summary':
         X = X.drop(pt_col,axis=1)
-
+    if pt_col in X.columns or label_col in X.columns:
+        X = X.drop(pt_col,axis=1)
+        X = X.drop(label_col,axis=1)
     print(list(X.columns),len(X),len(y))
     # exit()
+    print(X,X.isna().sum())
 
     clf.fit(X, y)
+    # exit()
     
     # endfit = time.time()
     # print(endfit-startfit,"fitting took this much time")
