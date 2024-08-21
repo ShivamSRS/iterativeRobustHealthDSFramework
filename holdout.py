@@ -89,9 +89,10 @@ import ast
 from dataselectutils import get_dataset,get_test_dataset
 from dataselectutils import get_dataset,statistical_filter,mutual_info, RFE_features,permutation_importance_features
 from arguments import time_window,data_files,test_folder,train_folder,project_folder,data_folder,label_col,pt_col
-
+from arguments import ventDataFolder,ventDataFiles_median
 from configs import Unbalanced,Downsample_25,feature_selection_method,feature_import_path,algorithm,use_features,prefered_columns,use_prefered_cols
-
+from configs import data_setting
+from VentWaveData import VentData
 
 data_files = data_files
 
@@ -109,7 +110,7 @@ from configs import num_splits, expt_name
 num_files = num_splits
 data_folder = ''
 train_or_test = validation+'/'
-results_path = 'results/'+time_window+"/"+ feature_selection_method+"/"
+results_path = 'results/'+time_window+"/"+ feature_selection_method+"/"+expt_name+"/"
 if Unbalanced is True:
     if Downsample_25 is True:
         results_path += "/Unbalanced_25_DS/"
@@ -121,6 +122,8 @@ if not os.path.isdir(results_path):
         os.makedirs('results/'+time_window+"/")
     if not os.path.isdir('results/'+time_window+"/"+feature_selection_method+"/"):
         os.makedirs('results/'+time_window+"/"+feature_selection_method+"/")
+    if not os.path.isdir('results/'+time_window+"/"+feature_selection_method+"/"+expt_name):
+        os.makedirs('results/'+time_window+"/"+feature_selection_method+"/"+expt_name)
     
     if Unbalanced is True:
         print("will make result subfolders now")
@@ -167,87 +170,260 @@ for file_num in range(num_files):
     
     print(test_folder,file_list[file_num],feature_selection_method)
     data_file = file_list[file_num]
-    X,y,test_df = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col)
+
+    if data_setting=='ehr':
+        
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+        
+        print(test_patient_ids)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        # exit()
+        print(patient_ids,set(patient_ids))
+    
+    elif data_setting=='vent':
+        obj = VentData(ventDataFolder)
+        
+        X,y,test_df, test_patients  =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,train=False,give_pt=True)
+        patient_ids = test_df[pt_col].values
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+        print(test_df[pt_col].value_counts(),len(test_df))
+        print("Number of 1s:", count_ones)
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+
+    elif data_setting=='both_summary' or data_setting=='oversample_both_summary':
+        obj = VentData(ventDataFolder)
+        
+        X,y,test_df  = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col,give_pt=True)
+        #get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
+        # print(X.columns)
+        
+        # print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        ventX,venty,ventdf_dataset, test_patients  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,train=False,give_pt=True,median_only=True)
+        print(X.columns,ventX.columns)
+        # exit()
+        # print(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),os.path.join(project_folder,train_or_test,time_window,data_file))
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        # exit() 
+        patient_ids = ventdf_dataset[pt_col].values
+        print("patient ids",patient_ids,sep="#####$$$$$#####")
+        # Counting 1s and 0s
+        count_ones = venty.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of EHR 1s:", count_ones)
+        
+        y=venty
+
+        print(X.columns,len(X),len(y))
+    elif data_setting=='both':
+        obj = VentData(ventDataFolder)
+        
+        X,y,test_df = get_test_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),label_col,pt_col,give_pt=True)
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        ventX,venty,ventdf_dataset, test_patients =obj.get_train_test_file(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,train=False,give_pt=True)
+        # print(ehrX.columns,ventX.columns)
+        # print("cv",cv,len(X))
+        # exit()
+        patient_ids = ventdf_dataset[pt_col].values
+        print("patient ids",patient_ids,sep="#####$$$$$#####")
+        # Counting 1s and 0s
+        count_ones = venty.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of 1s:", count_ones)
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+
+        print("Number of EHR 1s:", count_ones)
+        print("Number o:", len(ventX))
+        # print("Number of 0s:", count_zeros)
+        # exit()
+        
+        y=venty
+
+        print(X.columns,len(X),len(y))
+    
+    
+    # X,y,test_df = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col)
+
+    print("test folder",file_num,os.path.join(test_folder,data_file))
+    # exit()
     if 'Unnamed: 0' in test_df.columns.tolist():
         test_df = test_df.drop(['Unnamed: 0'], axis =1)
     if 'Unnamed: 0.1' in test_df.columns.tolist():
         test_df = test_df.drop(['Unnamed: 0.1'], axis =1)
     
 
-    if import_feature_list == 'Y':
-        feature_dict = joblib.load(feature_import_path)
-        # print(feature_dict)
-        try:
-            selected_features = feature_dict[data_file[:-4].replace('test','train')]
-        except:
-            print("probably key error passing all features instead")
-            selected_features = X.columns
-    else:
-        selected_features = [col for col in X.columns.tolist() if col not in ignore_fields]
+    # if import_feature_list == 'Y':
+    #     feature_dict = joblib.load(feature_import_path)
+    #     # print(feature_dict)
+    #     try:
+    #         selected_features = feature_dict[data_file[:-4].replace('test','train')]
+    #     except:
+    #         print("probably key error passing all features instead")
+    #         selected_features = X.columns
+    # else:
+    #     selected_features = [col for col in X.columns.tolist() if col not in ignore_fields]
+    
+    if data_setting=='ehr' or data_setting=='both' or data_setting=='both_summary' or data_setting=="oversample_both_summary":
+        print("inside inmport featu")
+        if import_feature_list == 'Y':
+
+            if os.path.exists(feature_import_path):
+                feature_dict = joblib.load(feature_import_path)
+                try:
+                    selected_features = feature_dict[data_file[:-4]]
+                    if selected_features==[]:
+                        print("no feature was selected, passing whole data instead")
+                        selected_features = X.columns
+                except:
+                    print("probably key error passing all features instead")
+                    selected_features = X.columns
+            
+                
+            else:
+                print("cant load the feature selection path")
+            
+            if use_prefered_cols:
+                selected_features = prefered_columns
+            print("selected features are ",len(selected_features),selected_features)
+            
+            if data_setting=="both" or data_setting=='both_summary' or data_setting=="oversample_both_summary":
+                
+                if pt_col not in selected_features:
+                    selected_features.append(pt_col)
+                print(X.columns,selected_features)
+                # exit()
+                X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]
+                # print(X.columns,ventX.columns)
+                # print(X,"VentX",ventX,sep="\n\n")
+                X = pd.merge(ventX, X, on=pt_col, how='left')
+                # print("after",X,sep="\n\n")
+                # exit()
+                print("after merging ehr and vent data",X.shape,y,venty,y.value_counts(),venty.value_counts(),(y-venty).value_counts())
+                # exit()
+                
+                print(y.shape,"sjsjmdaokp",X.shape)
+                # print(X.columns,y,(venty-y).value_counts())
+                # exit()
+                
+            else:
+                X = X[selected_features]
+            
+        # exit()
+        column_list =[]
+        column_list.append(X.columns.tolist())
+        # print(column_list)
+        filtered_col_list.append(X.columns.tolist())
+
+    
+    
+    
+    
     pickle_folder = project_folder + 'algorithm_selection/' + expt_name + '/' + \
                         algorithm + '/' + feature_selection_method + \
                         '/model_' + data_file[:-4].replace('test','train') + '/'
 
+    
     target =15
-    if not os.path.isdir(pickle_folder):
-        print(pickle_folder)
-        os.makedirs(pickle_folder)
-    print()
+    # if not os.path.isdir(pickle_folder):
+    #     print(pickle_folder)
+    #     os.makedirs(pickle_folder)
+    print(pickle_folder,"\n\n")
     try:
         saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
     except:
-        print(pickle_folder)
-        print("##############")
-        print("ERROR FOR",data_file)
-        print("###############")
-        continue
-    if selected_features==[]:
-            print("no feature was selected, passing whole data instead")
-            selected_features = X.columns
-    if use_prefered_cols:
-        selected_features = prefered_columns
-    print(selected_features)
+        try:
+            if data_setting=='both' or data_setting=='vent':
+                pickle_folder = project_folder + 'algorithm_selection/' + expt_name + '/' + \
+                                algorithm + '/' + "all_features" + \
+                                '/model_' + data_file[:-4].replace('test','train') + '/'
+            saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
+        except:         
+            print(pickle_folder)
+            print("##############")
+            print("ERROR FOR",data_file)
+            print("###############")
+            continue
+    # if selected_features==[]:
+    #         print("no feature was selected, passing whole data instead")
+    #         selected_features = X.columns
+    # if use_prefered_cols:
+    #     selected_features = prefered_columns
+    # print(selected_features)
     if pt_col in X.columns.tolist():
         X = X.drop([pt_col], axis =1)
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)
-    X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
+    # X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
 
-    print("######",X.shape,type(X),test_df.shape,selected_features)
+    print("######",X.shape,type(X),test_df.shape,X.columns)
     # exit()
-    if Unbalanced is True:
-        if Downsample_25 is True:
-            print(len(y),len((y[y==1]).index),len((y[y==1]).index)/2,(y[y==1]).index)
-            remove_n = 24 #int(len((y[y==1]).index)/2)
-            print(remove_n,X.loc[y[y==1].index,:].index,y[y==1].index)
-            drop_indices = np.random.choice(X.loc[y[y==1].index,:].index, remove_n, replace=False)
-            X = X.drop(drop_indices).reset_index(drop=True)
-            y = y.drop(drop_indices).reset_index(drop=True)
-            test_df = test_df.drop(drop_indices).reset_index(drop=True)
-            print(X.index, y.index)
-            print(X.shape,y.shape,test_df.shape)
-        else:
-            counter = Counter(y)
-            print(counter)
-            print(X.shape,y.shape,test_df.shape)
-            # transform the dataset
-            oversample = SMOTE(sampling_strategy={0:108,1:36})
-            X, y = oversample.fit_resample(X, y)
-            # summarize the new class distribution
-            counter = Counter(y)
-            print(counter)
-            print(X.shape,y.shape,test_df.shape)
-            # scatter plot of examples by class label
-            # for label, _ in counter.items():
-            #     row_ix = where(y == label)[0]
-            #     pyplot.scatter(X[row_ix, 0], X[row_ix, 1], label=str(label))
-            # pyplot.legend()
-            # pyplot.show()
+    # if Unbalanced is True:
+    #     if Downsample_25 is True:
+    #         print(len(y),len((y[y==1]).index),len((y[y==1]).index)/2,(y[y==1]).index)
+    #         remove_n = 24 #int(len((y[y==1]).index)/2)
+    #         print(remove_n,X.loc[y[y==1].index,:].index,y[y==1].index)
+    #         drop_indices = np.random.choice(X.loc[y[y==1].index,:].index, remove_n, replace=False)
+    #         X = X.drop(drop_indices).reset_index(drop=True)
+    #         y = y.drop(drop_indices).reset_index(drop=True)
+    #         test_df = test_df.drop(drop_indices).reset_index(drop=True)
+    #         print(X.index, y.index)
+    #         print(X.shape,y.shape,test_df.shape)
+    #     else:
+    #         counter = Counter(y)
+    #         print(counter)
+    #         print(X.shape,y.shape,test_df.shape)
+    #         # transform the dataset
+    #         oversample = SMOTE(sampling_strategy={0:108,1:36})
+    #         X, y = oversample.fit_resample(X, y)
+    #         # summarize the new class distribution
+    #         counter = Counter(y)
+    #         print(counter)
+    #         print(X.shape,y.shape,test_df.shape)
+    #         # scatter plot of examples by class label
+    #         # for label, _ in counter.items():
+    #         #     row_ix = where(y == label)[0]
+    #         #     pyplot.scatter(X[row_ix, 0], X[row_ix, 1], label=str(label))
+    #         # pyplot.legend()
+    #         # pyplot.show()
     
     # exit()
+    print(saved_model.named_steps)
+    cols = X.columns.tolist()
+    # X = X[cols[-4:] + cols[:-4]]
+    # X =X[['mean_flow_from_pef_median', 'inst_RR_median', 'minF_to_zero_median', 'pef_+0.16_to_zero_median', 'iTime_median', 'eTime_median', 'I:E ratio_median', 'dyn_compliance_median', 'tve:tvi ratio_median', 'stat_compliance_median', 'resist_median', 'sf_median', 'lab_pf_ratio_res_median', 'lab_pf_ratio_res_min', 'sf97']]
     
+    print(X.columns)
+    from configs import CFS_400_50_True, CFS_400_50_Alt
+    if data_setting=='both_summary' or data_setting=='oversample_both_summary':
+        vent_features_median = [ i +"_median" for i in obj.vent_features ]
+        if feature_selection_method=="CFS_400_50_True":
+            CFS_400_50_True.remove(pt_col)
+            
+            sorted_features =  vent_features_median + CFS_400_50_True 
+            print(sorted_features)
+        elif feature_selection_method == "CFS_400_50_Alt":
+            CFS_400_50_Alt.remove(pt_col)
+            sorted_features = vent_features_median + CFS_400_50_Alt
+            print(sorted_features)
+
+        X=X[sorted_features]
+    print(X.columns)
     Y_pred = saved_model.predict(X)
     print(Y_pred)
+    # exit()
     probas_=saved_model.predict_proba(X)
     
     if algorithm=='RF' or algorithm=='XGB':
@@ -275,6 +451,8 @@ for file_num in range(num_files):
             result_images_path += "/Unbalanced_25_US/"
 
     if os.path.exists(result_images_path) is False:
+        if os.path.exists(project_folder+"result_images/"+time_window+"/") is False:
+            os.mkdir(project_folder+"result_images/"+time_window+"/" )
         if os.path.exists(project_folder+"result_images/"+time_window+"/" + expt_name+"/") is False:
             os.mkdir(project_folder+"result_images/"+time_window+"/" + expt_name+"/")
         if os.path.exists(project_folder+"result_images/"+time_window+"/" + expt_name+"/"+algorithm) is False:
@@ -340,11 +518,22 @@ for file_num in range(num_files):
     lr_precision, lr_recall, _ = precision_recall_curve(y_test, probas_[:, 1])
 
     
-    
+    def convert_series_to_list(data):
+        if isinstance(data, pd.Series):
+            return data.tolist()
+        elif isinstance(data, list):
+            return data
+        else:
+            raise ValueError("Input must be a Pandas Series or a list.")
+
+
+    y_test = convert_series_to_list(y_test)
     
     fp_iloc_list = []
     fn_iloc_list = []
     for i in range(len(y_test)):
+        # print(Y_pred,y_test)
+        # exit()
         
         if (Y_pred[i] == 1) & (y_test[i] == 0):
             fp_iloc_list.append(i)

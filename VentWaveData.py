@@ -17,87 +17,9 @@ import pandas as pd
 import os
 from datetime import datetime, timedelta
 
-# patient_id = 1
-# # Path to the directory containing patient folders
-# base_directory_median = '/data0/ehrdata/ventDataFiles_median' #'/path/to/patient/folders/'
-# base_directory = '/data0/vwd_deidentified_data'
-# # Read the index time dataframe
-# index_time_df = pd.read_csv('/data0/vwd_deidentified_data/deidentified_cohort_list.csv')#'/path/to/index_time.csv')
-
-# # Function to parse datetime with milliseconds
-# def parse_datetime_with_ms(date_str):
-#     print(datetime.strptime(date_str, '%Y-%m-%d-%H-%M-%S.%f'))
-#     try:
-#         return datetime.strptime(date_str, '%Y-%m-%d-%H-%M-%S.%f')#'%Y-%m-%d-%H:%M:%S.%f')
-#     except ValueError:
-#         print(ValueError,date_str)
-#         return None
-
-# # Iterate through each patient's data
-# for patient_id in index_time_df['deidentified_study_id']:
-#     if patient_id//10==0:
-#         num_pt_formatted ='00'+str(patient_id)
-#     elif patient_id//100==0 and patient_id//10!=0:
-#         num_pt_formatted ='0'+str(patient_id)
-#     elif patient_id//1000==0 and patient_id//100!=0:
-#         num_pt_formatted =str(patient_id)
-
-#     # patient_folder = os.path.join(base_directory, num_pt_formatted)
-#     consolidateDF_path = glob.glob(base_directory+'/{}/*{}*consolidate*.csv'.format(num_pt_formatted,num_pt_formatted))[0]
-#     # os.path.join(patient_folder, 'consolidateDF.csv')
-#     print(consolidateDF_path)
-#     median_path = os.path.join(base_directory_median,str(patient_id), 'patientid_{}_vwd_summary.csv'.format(patient_id))
-#     # base_directory_median
-
-#     # Check if the required files exist
-#     if not os.path.exists(consolidateDF_path) or not os.path.exists(median_path):
-#         continue
-    
-#     # Read the consolidateDF and median dataframes
-#     consolidateDF = pd.read_csv(consolidateDF_path)
-#     median_df = pd.read_csv(median_path)
-    
-#     # Find the actual end time from consolidateDF
-#     last_valid_time = consolidateDF.dropna(subset=['breath_datetime']).iloc[-1]['breath_datetime']
-#     print("last vlaid time",last_valid_time)
-#     actual_end_time = parse_datetime_with_ms(last_valid_time)
-#     print("end time acrtual",actual_end_time)
-#     # exit()
-#     # Get the index_vent_start_time for the patient
-#     patient_index_time = index_time_df[index_time_df['deidentified_study_id'] == patient_id]
-#     vent_start_time_str = consolidateDF.iloc[1]['breath_datetime']#patient_index_time['index_vent_start_time'].values[0]
-#     vent_start_time = datetime.strptime(vent_start_time_str, '%Y-%m-%d-%H-%M-%S.%f')
-#     print("start",vent_start_time)
-#     # print("start start",consolidateDF.iloc[1]['breath_datetime'])
-#     # exit()  
-#     # Calculate vent start time + 24 hours
-#     vent_end_time = vent_start_time + timedelta(days=1)
-#     print("vent end time",vent_end_time)
-#     # print("first and last",median_df['absolute_time'][0],)
-#     # exit()
-#     # Convert the 'BS' time in median dataframe from seconds to timedelta
-#     median_df['timedelta'] = pd.to_timedelta(median_df['BS'], unit='s')
-    
-#     # Calculate the absolute times for median data points
-#     median_df['absolute_time'] = vent_start_time + median_df['timedelta']
-#     print("median first and last",median_df['absolute_time'][0],median_df['absolute_time'])
-
-#     # Filter the rows in median dataframe
-#     # print(median_df['absolute_time'],vent_start_time,vent_end_time,actual_end_time)
-#     filtered_median_df = median_df[median_df['absolute_time'] <= vent_end_time]
-#     print("first and last",filtered_median_df['absolute_time'][0],filtered_median_df['absolute_time'])
-#     exit()
-#     # Optionally, save the filtered dataframe
-#     print("saving time ")
-#     filtered_median_df.to_csv(os.path.join(base_directory_median,str(patient_id), 'filtered_median.csv'), index=False)
-
-# exit() 
-# filepath = "/data/vwd-deidentified-data/011/011-consolidate-vwd-2009-03-03-22-33-02.957.csv"
-# breath_meta = get_file_breath_meta(filepath, to_data_frame=True,new_format=True)
-
 from ventmap.raw_utils import extract_raw
 
-from arguments import project_folder,ventDataFolder,ventDataFile,data_folder,data_files,pt_col,label_col, ventDataFiles_median,fold_information_file
+from arguments import project_folder,ventDataFolder,data_folder,data_files,pt_col,label_col, ventDataFiles_median,fold_information_file
 from configs import no_of_pts
 from dataselectutils import get_dataset
 
@@ -155,9 +77,10 @@ class VentData:
         #     print("Processing patient",pt,"took",time.strftime("%Hh%Mm%Ss", time.gmtime(end-start)),"time")
         #     print("completely processed patient",pt)
             
+        
+        self.fold_infos = pd.read_csv(os.path.join(ventDataFolder,fold_information_file))
+        print("INSIDE VENT WAVE DATA fold info",fold_information_file,os.path.join(ventDataFolder,fold_information_file))
 
-        self.fold_infos = pd.read_csv(ventDataFolder+"/"+fold_information_file)
-        print("fold info",fold_information_file)
         fold_names = ["fold_1","fold_2","fold_3","fold_4","fold_5"]
         self.fold_pts = {'EHR_train_{}.csv'.format(i):[] for i in range(1,len(self.fold_infos)+1)}
         
@@ -235,11 +158,19 @@ class VentData:
         # peek.to_excel("138processed.xlsx")
         return peek.median()
 
-    def get_patients_from_folds_for_file(self,data_file,file_num):
+    def get_patients_from_folds_for_file(self,data_file,file_num,train_flag=True):
         fold_df = self.fold_infos #reading file specifying which pigs belong to which splits
+        print("THIS IS VVVENT WAVE PATIENT FOLD INFO FILE, FILE NUM IS ",file_num)
+        
+        if train_flag==True:
+            folds_for_current_split =  fold_df[fold_df['filename']==data_file.split("/")[-1]]
+        else:
+            folds_for_current_split =  fold_df[fold_df['filename']==data_file.split("/")[-1].replace('test','train')]
 
-        folds_for_current_split =  fold_df[fold_df['filename']==data_file.split("/")[-1]]
-        # print("foldsss",folds_for_current_split,folds_for_current_split['fold_1'],"foldss")
+        # print(train_flag)
+        print("foldsss",folds_for_current_split,folds_for_current_split['fold_1'],"foldss")
+        
+        # exit()
         fold_1_pigs = ast.literal_eval(folds_for_current_split['fold_1'].tolist()[0])
         fold_2_pigs = ast.literal_eval(folds_for_current_split['fold_2'].tolist()[0])
         fold_3_pigs = ast.literal_eval(folds_for_current_split['fold_3'].tolist()[0])
@@ -275,11 +206,11 @@ class VentData:
 
         return train_patients,test_patients
 
-    def get_train_test_file(self,filename,file_num,folder,time_window='',train = True,give_pt=False):
+    def get_train_test_file(self,filename,file_num,folder,time_window ='',train = True,give_pt=False):
         """
         pass time window as 6h or 24h as a string
         """
-        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num)
+        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num,train)
         # print(train_patients,"train",test_patients,"test")
         if train == True:
             train_dataset = pd.DataFrame()
@@ -306,9 +237,7 @@ class VentData:
                     train_dataset = pd.concat([train_dataset,tempFile],axis=0)
                     
             train_dataset=train_dataset.dropna().reset_index(drop=True)
-
-            k_folds = []
-
+            k_folds=[]            
             for fold_idx,fold in enumerate(train_patients):
 
 
@@ -326,8 +255,9 @@ class VentData:
                 train_idxs = []
                 val_idxs = train_dataset[train_dataset[pt_col].isin(fold)].index.tolist()
                 train_idxs = train_dataset[train_dataset[pt_col].isin(train_pigs)].index.tolist()
-                k_folds.append((np.array(train_idxs), np.array(val_idxs)))
 
+                k_folds.append((np.array(train_idxs), np.array(val_idxs)))
+            
             # print("K folds",k_folds)
 
             if give_pt==False:
@@ -339,6 +269,7 @@ class VentData:
                 # print(x[2000],y[2000],train_dataset.loc[x[2000],:],sep="^^^^^^^^^")
             X,y = train_dataset.loc[:,columns_to_include],train_dataset[label_col] 
             # print("x",X)
+            # exit()
             return X,y,train_dataset,k_folds,train_pigs
 
 
@@ -346,32 +277,35 @@ class VentData:
         else:
             test_dataset = pd.DataFrame()
             test_filepaths = []
-            for fold in test_patients:
-                for idx,patientID in enumerate(fold):
-                    test_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
-                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
-                    if time_window =='' or time_window=='48h':
-                        tempFile = tempFile[tempFile['BE']<86400]
-                    elif time_window =='12h' or time_window=='30h':
-                        tempFile = tempFile[tempFile['BE']<21600]
-                    else:
-                        tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
-                    # print(tempFile.columns)
-                    
-                    tempFile = tempFile[[pt_col,label_col]+self.vent_features]
-                    test_dataset = pd.concat([test_dataset,tempFile],axis=0)
-                    
+            for patientID in test_patients:
+            
+                test_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                if time_window =='' or time_window=='48h':
+                    tempFile = tempFile[tempFile['BE']<86400]
+                elif time_window =='12h' or time_window=='30h':
+                    tempFile = tempFile[tempFile['BE']<21600]
+                else:
+                    tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                # print(tempFile.columns)
+                
+                tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+                test_dataset = pd.concat([test_dataset,tempFile],axis=0)
+                
             test_dataset=test_dataset.dropna().reset_index(drop=True)
-            columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            if give_pt==False:
+                columns_to_include = [col for col in test_dataset.columns if col not in [pt_col,label_col]]
+            else:
+                columns_to_include = [col for col in test_dataset.columns if col not in [label_col]]
             X,y = test_dataset.loc[:,columns_to_include],test_dataset[label_col] 
             print("x",X)
-            return X,y,test_dataset
+            return X,y,test_dataset,test_patients
     
     def get_train_test_file_summary(self,filename,file_num,folder,time_window='',train = True,give_pt=False,median_only=False):
         """
         pass time window as 6h or 24h as a string
         """
-        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num)
+        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num,train)
         # print(train_patients,"train",test_patients,"test")
         if train == True:
             train_dataset = pd.DataFrame()
@@ -481,12 +415,191 @@ class VentData:
                 columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
             else:
                 columns_to_include = [col for col in train_dataset.columns if col not in [label_col]]
+            # train_dataset.sort_values(by=pt_col, inplace=True)
             X,y = train_dataset.loc[:,columns_to_include],train_dataset[label_col] 
             
             print(X,y,train_dataset,train_pigs)
             print("leaving vent wave")
             # exit()
             return X,y,train_dataset,k_folds,train_pigs
+
+
+
+        else:
+            test_dataset = pd.DataFrame()
+            test_filepaths = []
+            print("no of patients",len(test_patients))
+            # exit()
+            for idx,patientID  in enumerate(test_patients):
+                # print("jnfvjfnjvnfsjvnfjvnf",test_patients,fold)
+                # exit()
+                # for idx,patientID in enumerate(fold):
+                test_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                if time_window =='' or time_window=='48h':
+                    tempFile = tempFile[tempFile['BE']<86400]
+                elif time_window =='12h' or time_window=='30h':
+                    tempFile = tempFile[tempFile['BE']<21600]
+                else:
+                    tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                # print(tempFile.columns)
+                
+                tempFile = tempFile[[pt_col,label_col,'rel_time_at_BS']+self.vent_features]
+
+                df =tempFile
+
+                if median_only==False:
+                    statistics = pd.DataFrame({
+                        'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
+                        'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                        'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
+                        'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
+                        'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
+                    })
+                else:
+                    statistics = pd.DataFrame({
+                        'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
+                    })
+
+                # Prepare a DataFrame to collect all statistics
+                all_stats = {pt_col:tempFile[pt_col][0],label_col:tempFile[label_col][0]}
+
+                if median_only==False:
+                    # Function to calculate slopes for each column
+                    def calculate_slope(y, x=df['rel_time_at_BS']):
+                        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+                        return slope
+
+                    # Append slope to statistics
+                    print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
+                    statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
+                    # statistics = statistics.T
+                    # print(statistics['slope'])
+
+                
+                # Flatten statistics into a single row with concatenated names
+                for stat, series in statistics.items():
+
+                    for col_name in series.index:
+                        
+                        all_stats[f'{col_name}_{stat}'] = series[col_name]
+
+                # Convert the dictionary to DataFrame
+                summary_df = pd.DataFrame([all_stats])
+                # print(summary_df)                    
+                
+                test_dataset = pd.concat([test_dataset,summary_df],axis=0)
+                    
+            # exit()
+            # train_dataset=train_dataset.dropna().reset_index(drop=True)
+
+            k_folds = []
+            # print(train_dataset.columns[train_dataset.isna().any()].tolist(),train_dataset.isna().sum())
+            # print(len(train_dataset))
+            for col in test_dataset.columns:
+                if 'stddev' in col or 'slope' in col:
+                    test_dataset[col].fillna(0, inplace=True)
+            if give_pt==False:
+                columns_to_include = [col for col in test_dataset.columns if col not in [pt_col,label_col]]
+            else:
+                columns_to_include = [col for col in test_dataset.columns if col not in [label_col]]
+            X,y = test_dataset.loc[:,columns_to_include],test_dataset[label_col] 
+            print("x",X)
+            return X,y,test_dataset, test_patients
+
+
+
+    def get_oversample_vent_train_test_file(self,filename,file_num,folder,time_window='',train = True,give_pt=False):
+        """
+        pass time window as 6h or 24h as a string
+        """
+        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num)
+        # print(train_patients,"train",test_patients,"test")
+        if train == True:
+            train_dataset = pd.DataFrame()
+            train_filepaths = []
+            for fold in train_patients:
+                for idx,patientID in enumerate(fold):
+                    train_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    if time_window =='' or time_window=='48h':
+                        # print("time iwndo is 48h")
+                        tempFile = tempFile[tempFile['BE']<86400]
+                        # print(len(tempFile))
+                    elif time_window =='12h' or time_window=='30h':
+                        # print("time iwndo is ",time_window)
+                        tempFile = tempFile[tempFile['BE']<21600]
+                        # print(len(tempFile))
+                    else:
+                        # print("why is this coming here?")
+                        tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                        # print(len(tempFile))
+                    # print(tempFile.columns)
+                    # exit()
+                    tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+                    train_dataset = pd.concat([train_dataset,tempFile],axis=0)
+                    
+            train_dataset=train_dataset.dropna().reset_index(drop=True)
+            print(train_patients)
+            # exit()
+            from imblearn.over_sampling import SMOTE
+            
+            k_folds = []
+            x_new,y_new=[],[]
+            idxs = []
+            print(train_dataset[label_col].value_counts())
+            # exit()
+            for fold_idx,fold in enumerate(train_patients):
+
+
+                CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
+                print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+                # exit()
+                # break
+                train_pigs = []
+                for l in range(len(CV_train_pts_list)):
+                    train_pigs+=list(CV_train_pts_list[l])
+
+                # print("train pigs",train_pigs)
+
+                train_pt_data =train_dataset[train_dataset[pt_col].isin(train_pigs)]
+                test_pt_data =  train_dataset[train_dataset[pt_col].isin(fold)]
+                nan_mask = np.any(train_pt_data.isna(), axis=1)
+
+                sm = SMOTE(sampling_strategy={0:3*len(train_pt_data[train_pt_data[label_col]==1]),1:len(train_pt_data[train_pt_data[label_col]==1])})
+                # nan_mask = np.any(train_pt_data[feature_cols].isna(), axis=1)
+                fold_x_res, fold_y_res = sm.fit_resample(train_pt_data[~nan_mask][self.vent_features], train_pt_data[~nan_mask][label_col])
+                # set non feature cols to nan because theres no actual reference to real
+                # world values with synthetic data
+                # fold_x_res[non_feature_cols] = np.nan
+                x_new.extend([fold_x_res, test_pt_data])
+                y_new.extend([fold_y_res, test_pt_data[label_col]])
+
+            
+            cur_idx = 0
+            for i in range(0, len(x_new), 2):
+                x_tr_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i])))
+                cur_idx += len(x_new[i])
+                x_tst_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i+1])))
+                cur_idx += len(x_new[i+1])
+                idxs.append((x_tr_idx, x_tst_idx))
+            train_dataset, y = pd.concat(x_new, ignore_index=True), pd.concat(y_new, ignore_index=True)
+            print(y.value_counts(),train_dataset[pt_col].unique(),len(train_datasetx[pt_col].unique()))
+            print(train_dataset.columns)
+            
+            
+            # print("K folds",k_folds)
+
+            if give_pt==False:
+                columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            else:
+                columns_to_include = [col for col in train_dataset.columns if col not in [label_col]]
+            # for x,y in k_folds:
+                # print(x,len(x),"x",y,len(y),"y",sep='\n###\n')
+                # print(x[2000],y[2000],train_dataset.loc[x[2000],:],sep="^^^^^^^^^")
+            X,y = train_dataset.loc[:,columns_to_include],y 
+            # print("x",X)
+            return X,y,train_dataset,idxs
 
 
 
@@ -505,73 +618,300 @@ class VentData:
                         tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
                     # print(tempFile.columns)
                     
-                    tempFile = tempFile[[pt_col,label_col,'rel_time_at_BS']+self.vent_features]
-
-                    df =tempFile
-
-                    if median_only==False:
-                        statistics = pd.DataFrame({
-                            'mean': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).mean(),
-                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
-                            'min': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).min(),
-                            'max': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).max(),
-                            'stddev': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).std(),
-                        })
-                    else:
-                        statistics = pd.DataFrame({
-                            'median': df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).median(),
-                        })
-
-                    # Prepare a DataFrame to collect all statistics
-                    all_stats = {pt_col:tempFile[pt_col][0],label_col:tempFile[label_col][0]}
-
-                    if median_only==False:
-                        # Function to calculate slopes for each column
-                        def calculate_slope(y, x=df['rel_time_at_BS']):
-                            slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
-                            return slope
-
-                        # Append slope to statistics
-                        print(df.drop(['rel_time_at_BS',pt_col,label_col], axis=1))
-                        statistics['slope'] = df.drop(['rel_time_at_BS',pt_col,label_col], axis=1).apply(calculate_slope)
-                        # statistics = statistics.T
-                        # print(statistics['slope'])
-
+                    tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+                    test_dataset = pd.concat([test_dataset,tempFile],axis=0)
                     
-                    # Flatten statistics into a single row with concatenated names
-                    for stat, series in statistics.items():
-
-                        for col_name in series.index:
-                            
-                            all_stats[f'{col_name}_{stat}'] = series[col_name]
-
-                    # Convert the dictionary to DataFrame
-                    summary_df = pd.DataFrame([all_stats])
-                    # print(summary_df)                    
-                    
-                    test_dataset = pd.concat([test_dataset,summary_df],axis=0)
-                    
-            # exit()
-            # train_dataset=train_dataset.dropna().reset_index(drop=True)
-
-            k_folds = []
-            # print(train_dataset.columns[train_dataset.isna().any()].tolist(),train_dataset.isna().sum())
-            # print(len(train_dataset))
-            for col in test_dataset.columns:
-                if 'stddev' in col or 'slope' in col:
-                    test_dataset[col].fillna(0, inplace=True)
-            columns_to_include = [col for col in test_dataset.columns if col not in [pt_col,label_col]]
+            test_dataset=test_dataset.dropna().reset_index(drop=True)
+            columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
             X,y = test_dataset.loc[:,columns_to_include],test_dataset[label_col] 
             print("x",X)
             return X,y,test_dataset
-        
 
-        
+    def get_oversample_vent_ehr_train_test_file(self,filename,file_num,folder,time_window='',train = True,give_pt=False):
+        """
+        pass time window as 6h or 24h as a string
+        """
+        from dataselectutils import get_dataset
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,"train",time_window, filename),file_num,label_col,pt_col,give_pt=True)
 
-        
+        train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num)
+        print(train_patients,"train","\n\n",train_patient_ids,"meow")
+        # exit()
+        if train == True:
+            train_dataset = pd.DataFrame()
+            train_filepaths = []
+            for fold in train_patients:
+                for idx,patientID in enumerate(fold):
+                    train_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    
+                    if time_window =='' or time_window=='48h':
+                        # print("time iwndo is 48h")
+                        tempFile = tempFile[tempFile['BE']<86400]
+                        # print(len(tempFile))
+                    elif time_window =='12h' or time_window=='30h':
+                        # print("time iwndo is ",time_window)
+                        tempFile = tempFile[tempFile['BE']<21600]
+                        # print(len(tempFile))
+                    else:
+                        # print("why is this coming here?")
+                        tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                        # print(len(tempFile))
+                    # print(tempFile.columns)
+                    # print(tempFile)
+                    # exit()
+                    tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+                    train_dataset = pd.concat([train_dataset,tempFile],axis=0)
+                    
+            train_dataset=train_dataset.dropna().reset_index(drop=True)
+            from configs import prefered_columns
+            selected_features = prefered_columns
+            
+            X = X[[pt_col]+selected_features]#[list(X.columns[:51]) + list(selected_features)]
+            train_dataset = pd.merge(train_dataset, X, on=pt_col, how='left')
+            train_dataset.to_excel("temp.xlsx")
+            print(train_dataset.isna().sum())
+            # exit()
+            print("after merging ehr and vent data",X.shape)
+            # y = venty
+            print(train_dataset.columns, train_dataset[label_col].value_counts())
+            # exit()
+            print(y.shape,"sjsjmdaokp",X.shape)
+
+
+            # print(train_patients)
+            # exit()
+            from imblearn.over_sampling import SMOTE
+            
+            k_folds = []
+            x_new,y_new=[],[]
+            idxs = []
+            print(train_dataset[label_col].value_counts())
+            # exit()
+            for fold_idx,fold in enumerate(train_patients):
+
+
+                CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
+                print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+                # exit()
+                # break
+                train_pigs = []
+                for l in range(len(CV_train_pts_list)):
+                    train_pigs+=list(CV_train_pts_list[l])
+
+                print("train pigs",train_pigs)
+                
+                
+                train_pt_data =train_dataset[train_dataset[pt_col].isin(train_pigs)]
+                test_pt_data =  train_dataset[train_dataset[pt_col].isin(fold)]
+                ########################
+                #for holdout set make sure u concatenate the patient IDs after this
+                ######################
+
+                
+                sm = SMOTE(sampling_strategy={0:3*len(train_pt_data[train_pt_data[label_col]==1]),1:len(train_pt_data[train_pt_data[label_col]==1])})
+                # nan_mask = np.any(train_pt_data[feature_cols].isna(), axis=1)
+                nan_mask = np.any(train_pt_data.isna(), axis=1)
+                selcted_cols = train_dataset.columns.difference(pd.Index([pt_col,label_col]))
+                fold_x_res, fold_y_res = sm.fit_resample(train_pt_data[~nan_mask][selcted_cols], train_pt_data[~nan_mask][label_col])
+                # set non feature cols to nan because theres no actual reference to real
+                # world values with synthetic data
+                # fold_x_res[non_feature_cols] = np.nan
+                print(fold_x_res.isna().sum())
+                
+                # exit()
+                
+                
+                y_new.extend([fold_y_res, test_pt_data[label_col]])
+                
+                
+                x_new.extend([fold_x_res, test_pt_data])
+
+            
+            cur_idx = 0
+            for i in range(0, len(x_new), 2):
+                x_tr_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i])))
+                cur_idx += len(x_new[i])
+                x_tst_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i+1])))
+                cur_idx += len(x_new[i+1])
+                idxs.append((x_tr_idx, x_tst_idx))
+            combined_dfx_list = []
+            combined_dfy_list = []
+            
+            for fold_x,fold_y in zip(x_new,y_new):
+                
+                
+                combined_dfx_list.append(fold_x)
+                
+
+                combined_dfy_list.append(fold_y)
+                
+
+            train_dataset, y = pd.concat(combined_dfx_list, ignore_index=True), pd.concat(combined_dfy_list, ignore_index=True)
+            print("sep",train_dataset.isna().sum())
+            # exit()
+            print(y.value_counts(),train_dataset[pt_col].unique(),len(train_dataset[pt_col].unique()))
+            print(train_dataset.columns)
+            
+            
+            # print("K folds",k_folds)
+
+            if give_pt==False:
+                columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            else:
+                columns_to_include = [col for col in train_dataset.columns if col not in [label_col]]
+            # for x,y in k_folds:
+                # print(x,len(x),"x",y,len(y),"y",sep='\n###\n')
+                # print(x[2000],y[2000],train_dataset.loc[x[2000],:],sep="^^^^^^^^^")
+            X,y = train_dataset.loc[:,columns_to_include] ,y
+            # print("x",X)
+            train_dataset.to_excel("temp.xlsx")
+            return X,y,train_dataset,idxs
 
 
 
-# obj = VentData(ventDataFolder)
-# # obj.analyse_breath_missing_report()
-# obj.get_train_test_file(1,ventDataFiles_median)
+        else:
+            test_dataset = pd.DataFrame()
+            test_filepaths = []
+            for fold in test_patients:
+                for idx,patientID in enumerate(fold):
+                    test_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    if time_window =='' or time_window=='48h':
+                        tempFile = tempFile[tempFile['BE']<86400]
+                    elif time_window =='12h' or time_window=='30h':
+                        tempFile = tempFile[tempFile['BE']<21600]
+                    else:
+                        tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+                    # print(tempFile.columns)
+                    
+                    tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+                    test_dataset = pd.concat([test_dataset,tempFile],axis=0)
+                    
+            test_dataset=test_dataset.dropna().reset_index(drop=True)
+            columns_to_include = [col for col in train_dataset.columns if col not in [pt_col,label_col]]
+            X,y = test_dataset.loc[:,columns_to_include],test_dataset[label_col] 
+            print("x",X)
+            return X,y,test_dataset
+
+#     def get_oversample_vent_ehr_train_test_file(self,filename,file_num,folder,time_window='',train = True,give_pt=False):
+#         """
+#         pass time window as 6h or 24h as a string
+#         """
+#         from dataselectutils import get_dataset
+#         X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,"train",time_window, filename),file_num,label_col,pt_col,give_pt=True)
+
+#         train_patients,test_patients = self.get_patients_from_folds_for_file(filename,file_num)
+#         print(train_patients,"train","\n\n",train_patient_ids,"meow")
+#         # exit()
+#         if train == True:
+#             train_dataset = pd.DataFrame()
+#             train_filepaths = []
+#             for fold in train_patients:
+#                 for idx,patientID in enumerate(fold):
+#                     train_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+#                     tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+#                     if time_window =='' or time_window=='48h':
+#                         # print("time iwndo is 48h")
+#                         tempFile = tempFile[tempFile['BE']<86400]
+#                         # print(len(tempFile))
+#                     elif time_window =='12h' or time_window=='30h':
+#                         # print("time iwndo is ",time_window)
+#                         tempFile = tempFile[tempFile['BE']<21600]
+#                         # print(len(tempFile))
+#                     else:
+#                         # print("why is this coming here?")
+#                         tempFile = tempFile[tempFile['BE']<int(time_window[:-1])*3600]
+#                         # print(len(tempFile))
+#                     # print(tempFile.columns)
+#                     # exit()
+#                     tempFile = tempFile[[pt_col,label_col]+self.vent_features]
+#                     train_dataset = pd.concat([train_dataset,tempFile],axis=0)
+                    
+#             train_dataset=train_dataset.dropna().reset_index(drop=True)
+#             from configs import prefered_columns
+#             selected_features = prefered_columns
+            
+#             X = X[[pt_col]+selected_features]#[list(X.columns[:51]) + list(selected_features)]
+#             train_dataset = pd.merge(train_dataset, X, on=pt_col, how='left')
+#             train_dataset.to_excel("temp.xlsx")
+#             print(train_dataset.isna().sum())
+#             # exit()
+#             print("after merging ehr and vent data",X.shape)
+#             # y = venty
+#             print(train_dataset.columns, train_dataset[label_col].value_counts())
+#             # exit()
+            
+
+
+#             # print(train_patients)
+#             # exit()
+#             from imblearn.over_sampling import SMOTE
+            
+#             k_folds = []
+#             x_new,y_new=[],[]
+#             idxs = []
+#             print(train_dataset[label_col].value_counts())
+#             # exit()
+
+#             sm = SMOTE(sampling_strategy={0:3*len(train_dataset[train_dataset[label_col]==1]),1:len(train_dataset[train_dataset[label_col]==1])})
+#             # nan_mask = np.any(train_pt_data[feature_cols].isna(), axis=1)
+#             nan_mask = np.any(train_dataset.isna(), axis=1)
+#             train_x_res, train_y_res = sm.fit_resample(train_dataset[~nan_mask][:,[col for col in train_dataset.columns if col != label_col]], train_dataset[~nan_mask][label_col])
+
+#             print(train_x_res.sum().isna(),train_y_res.value_counts())
+#             exit()
+#             for fold_idx,fold in enumerate(train_patients):
+
+
+#                 CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
+#                 print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+#                 # exit()
+#                 # break
+#                 train_pigs = []
+#                 for l in range(len(CV_train_pts_list)):
+#                     train_pigs+=list(CV_train_pts_list[l])
+
+#                 print("train pigs",train_pigs)
+                
+                
+#                 train_pt_data =train_dataset[train_dataset[pt_col].isin(train_pigs)]
+#                 test_pt_data =  train_dataset[train_dataset[pt_col].isin(fold)]
+                
+#                 sm = SMOTE(sampling_strategy={0:3*len(train_pt_data[train_pt_data[label_col]==1]),1:len(train_pt_data[train_pt_data[label_col]==1])})
+#                 # nan_mask = np.any(train_pt_data[feature_cols].isna(), axis=1)
+#                 nan_mask = np.any(train_pt_data.isna(), axis=1)
+#                 fold_x_res, fold_y_res = sm.fit_resample(train_pt_data[~nan_mask][self.vent_features], train_pt_data[~nan_mask][label_col])
+#                 # set non feature cols to nan because theres no actual reference to real
+#                 # world values with synthetic data
+#                 # fold_x_res[non_feature_cols] = np.nan
+                
+#                 x_new.extend([fold_x_res, test_pt_data])
+#                 y_new.extend([fold_y_res, test_pt_data[label_col]])
+
+#             for fold_idx,fold in enumerate(train_patients):
+
+
+#                 CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
+#                 print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+#                 # exit()
+#                 # break
+#                 train_pigs = []
+#                 for l in range(len(CV_train_pts_list)):
+#                     train_pigs+=list(CV_train_pts_list[l])
+
+#                 # print("train pigs",train_pigs)
+
+#                 val_idxs = []
+#                 train_idxs = []
+#                 val_idxs = train_dataset[train_dataset[pt_col].isin(fold)].index.tolist()
+#                 train_idxs = train_dataset[train_dataset[pt_col].isin(train_pigs)].index.tolist()
+
+#                 k_folds.append((np.array(train_idxs), np.array(val_idxs)))
+
+            
+            
+
+# # obj = VentData(ventDataFolder)
+# # # obj.analyse_breath_missing_report()
+# # obj.get_train_test_file(1,ventDataFiles_median)

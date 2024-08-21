@@ -535,11 +535,15 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
         print(train_pig_list,len(train_pig_list),df[pt_col].isin(train_pig_list))
         new_x = df[df[pt_col].isin(train_pig_list)][:]
         new_y = df[df[pt_col].isin(train_pig_list)][label_col]
-        print(new_y.value_counts(),new_y.shape,new_x.shape)
-        # exit()
         X = new_x
         y = new_y
-        # print(X,y)
+        print(new_y.value_counts(),new_y.shape,new_x.shape)
+        # exit()
+        
+        print(len(df))
+        df = df[df[pt_col].isin(train_pig_list)][:]
+        print(len(df))
+        # # print(X,y)
         # exit()
 
     if 'std_beats_mean_cvp' in X.columns.tolist():
@@ -557,7 +561,8 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
     if 'ZIPCODE' in X.columns.tolist():
         X = X.drop(['ZIPCODE'], axis =1)
 
-    
+    # print(k_folds)
+    # exit()
     if remove_diagnostic_features==True:
         X=X.drop(diagnostic_features,axis =1)
 
@@ -568,7 +573,7 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
 
     return X, y, df, k_folds,foldwise_train_pigs,foldwise_test_pigs
 
-def get_test_dataset(data_file,label_col,pt_col):
+def get_test_dataset(data_file,label_col,pt_col,give_pt=False):
     #Processing input file for ingestion into training functions
 
 
@@ -585,7 +590,7 @@ def get_test_dataset(data_file,label_col,pt_col):
     
     if 'Unnamed: 0.1' in X.columns.tolist():
         X = X.drop(['Unnamed: 0.1'], axis =1)
-    if pt_col in X.columns.tolist():
+    if give_pt==False and pt_col in X.columns.tolist():
         X = X.drop([pt_col], axis =1)
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)

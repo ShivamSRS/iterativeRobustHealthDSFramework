@@ -386,12 +386,15 @@ for file_num in range(num_files):
         obj = VentData(ventDataFolder)
         
         X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
-        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        # print(X.columns)
+        
+        # print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
         ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True,median_only=True)
         # print(ehrX.columns,ventX.columns)
-        print(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),os.path.join(project_folder,train_or_test,time_window,data_file))
-        print("cv",cv)
-        # exit()
+        # print(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),os.path.join(project_folder,train_or_test,time_window,data_file))
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        print("\n\n\n\n #######cv",cv)
+        # exit() 
         patient_ids = ventdf_dataset[pt_col].values
         print("patient ids",patient_ids,sep="#####$$$$$#####")
         # Counting 1s and 0s
@@ -412,6 +415,42 @@ for file_num in range(num_files):
         y=venty
 
         print(X.columns,len(X),len(y))
+    
+    elif data_setting=='oversample_both_summary':
+        obj = VentData(ventDataFolder)
+        print("now enteting ehr only")
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col,give_pt=True)
+        
+        df_dataset.sort_values(by=pt_col, inplace=True)
+        df_dataset.reset_index(drop=True, inplace=True)
+        X,y = df_dataset,df_dataset[label_col] 
+        if 'Unnamed: 0' in X.columns.tolist():
+            X = X.drop(['Unnamed: 0'], axis =1)
+        if 'Unnamed: 0.1' in X.columns.tolist():
+            X = X.drop(['Unnamed: 0.1'], axis =1)
+        if label_col in X.columns.tolist():
+            X = X.drop([label_col], axis =1)
+
+        print("finish ehr")
+
+        ventX,venty,ventdf_dataset, cv,train_pigs  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,give_pt=True,median_only=True)
+        
+        print("oversam")
+        
+        ventdf_dataset.sort_values(by=pt_col, inplace=True)
+        ventdf_dataset.reset_index(drop=True, inplace=True)
+        columns_to_include = [col for col in ventdf_dataset.columns if col not in [label_col]]
+        ventX,venty = ventdf_dataset.loc[:,columns_to_include],ventdf_dataset[label_col] 
+
+        print(y.value_counts(),venty.value_counts(),(y-venty).value_counts())
+        df_dataset.to_excel("ehrCHEDCK.xlsx")
+        ventdf_dataset.to_excel("ventCHECK.xlsx")
+
+        # exit()
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+               'specificity': make_scorer(recall_score,pos_label=0),\
+               'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        print(cv)
 
     else:
         obj = VentData(ventDataFolder)
@@ -449,7 +488,7 @@ for file_num in range(num_files):
     
 
     print()
-    if data_setting=='ehr' or data_setting=='both' or data_setting=='both_summary':
+    if data_setting=='ehr' or data_setting=='both' or data_setting=='both_summary' or data_setting=="oversample_both_summary":
         print("inside inmport featu")
         if import_feature_list == 'Y':
 
@@ -471,15 +510,126 @@ for file_num in range(num_files):
             if use_prefered_cols:
                 selected_features = prefered_columns
             print("selected features are ",len(selected_features),selected_features)
-            if data_setting=="both" or data_setting=='both_summary':
-                X = X[[pt_col]+selected_features]#[list(X.columns[:51]) + list(selected_features)]
+            
+            if data_setting=="both" or data_setting=='both_summary' or data_setting=="oversample_both_summary":
+                
+                if pt_col not in selected_features:
+                    selected_features.append(pt_col)
+                print(X.columns,selected_features)
+                # exit()
+                X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]
+                # print(X.columns,ventX.columns)
+                # print(X,"VentX",ventX,sep="\n\n")
                 X = pd.merge(ventX, X, on=pt_col, how='left')
-                print("after merging ehr and vent data",X.shape)
-                y = venty
+                # print("after",X,sep="\n\n")
+                # exit()
+                print("after merging ehr and vent data",X.shape,y,venty,y.value_counts(),venty.value_counts(),(y-venty).value_counts())
+                # exit()
+                
                 print(y.shape,"sjsjmdaokp",X.shape)
-                print(X.columns,y)
+                # print(X.columns,y,(venty-y).value_counts())
+                # exit()
+
+                if data_setting=="oversample_both_summary":
+                    
+                    
+                    train_patients = train_patient_ids
+                    train_dataset = pd.concat([X,y.rename(label_col)],axis=1)
+                    
+                    print("These are columns",train_dataset.columns,train_dataset.shape)
+                    # exit()
+                    x_new=[]
+                    y_new=[]
+                    for fold_idx,fold in enumerate(train_patients):
+
+                        CV_train_pts_list = [f for f_idx,f in enumerate(train_patients) if f_idx!=fold_idx]
+                        # print("CV",CV_train_pts_list,len(CV_train_pts_list),fold,sep="\n####")
+                        # exit()
+                        # break
+                        train_pigs = []
+                        for l in range(len(CV_train_pts_list[0])):
+                            # print(CV_train_pts_list[l][0])
+                            # exit()
+                            train_pigs+=CV_train_pts_list[0][l]
+
+                        # print("train pigs",sorted(train_pigs))
+                        
+                        # print("\n\n\n ",train_dataset[pt_col].astype(int).isin(sorted(fold[0])))
+                        # exit()
+                        train_pt_data =train_dataset[train_dataset[pt_col].isin(train_pigs)]
+                        test_pt_data =  train_dataset[train_dataset[pt_col].isin(fold[0])]
+                        ########################
+                        #for holdout set make sure u concatenate the patient IDs after this
+                        ######################
+
+                        # print(train_pt_data.shape,test_pt_data.shape)
+                        sm = SMOTE(sampling_strategy={0:3*len(train_pt_data[train_pt_data[label_col]==1]),1:len(train_pt_data[train_pt_data[label_col]==1])})
+                        # nan_mask = np.any(train_pt_data[feature_cols].isna(), axis=1)
+                        nan_mask = np.any(train_pt_data.isna(), axis=1)
+                        # print(train_pt_data.isna().sum())
+                        selcted_cols = train_dataset.columns.difference(pd.Index([pt_col,label_col]))
+                        # print(train_pt_data)
+                        print(selcted_cols)
+                        # exit()
+                        fold_x_res, fold_y_res = sm.fit_resample(train_pt_data[~nan_mask][selcted_cols], train_pt_data[~nan_mask][label_col])
+                        # set non feature cols to nan because theres no actual reference to real
+                        # world values with synthetic data
+                        # fold_x_res[non_feature_cols] = np.nan
+                        print(len(fold_x_res),len(train_pt_data[train_pt_data[label_col]==1]))
+                        # exit()
+                        fold_y_res = fold_y_res.rename(label_col)
+                        print(fold_x_res.isna().sum(),"\n\n",fold_y_res.isna().sum(),type(fold_y_res),fold_y_res)
+                        
+                        # exit()
+                        
+                        
+                        y_new.extend([fold_y_res, test_pt_data[label_col]])
+                        
+                        
+                        x_new.extend([fold_x_res, test_pt_data])
+                        print(fold_idx)
+                    print(len(y_new),len(x_new))
+                    # exit()
+                    print("INSIDNE ED")
+                    # exit()
+                    # print(x_new,y_new)
+                    # exit()
+                    idxs=[]
+                    cur_idx = 0
+                    for i in range(0, len(x_new), 2):
+                        x_tr_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i])))
+                        cur_idx += len(x_new[i])
+                        x_tst_idx = pd.Index(range(cur_idx, cur_idx+len(x_new[i+1])))
+                        cur_idx += len(x_new[i+1])
+                        idxs.append((x_tr_idx, x_tst_idx))
+                    combined_dfx_list = []
+                    combined_dfy_list = []
+                    cv =idxs
+                    
+                    for ctr,(fold_x,fold_y) in enumerate(zip(x_new,y_new)):
+                        
+                        print(ctr)
+                        combined_dfx_list.append(fold_x)
+                        
+                        if ctr%2==1:
+                            combined_dfy_list.append(fold_y.rename(label_col))
+                        else:
+                            combined_dfy_list.append(fold_y)
+                    
+                        
+
+                    X, y = pd.concat(combined_dfx_list, ignore_index=True), pd.concat(combined_dfy_list, ignore_index=True)
+                    # print(y,X)
+                    print(X.isna().sum())
+                    # exit()
+                    print(X.shape,y.shape)
+
+                    print(X.columns)
+                    # exit()
+                
             else:
                 X = X[selected_features]
+            
         # exit()
         column_list =[]
         column_list.append(X.columns.tolist())
@@ -518,10 +668,29 @@ for file_num in range(num_files):
 
     if data_setting=='both' or data_setting=='both_summary':
         X = X.drop(pt_col,axis=1)
-    if pt_col in X.columns or label_col in X.columns:
+    if pt_col in X.columns:
         X = X.drop(pt_col,axis=1)
+    if label_col in X.columns:
         X = X.drop(label_col,axis=1)
-    print(list(X.columns),len(X),len(y))
+    print(list(X.columns),len(X),len(y),"\n\n\n")
+    
+    
+    # X =X[['mean_flow_from_pef_median', 'inst_RR_median', 'minF_to_zero_median', 'pef_+0.16_to_zero_median', 'iTime_median', 'eTime_median', 'I:E ratio_median', 'dyn_compliance_median', 'tve:tvi ratio_median', 'stat_compliance_median', 'resist_median', 'sf_median', 'lab_pf_ratio_res_median', 'lab_pf_ratio_res_min', 'sf97']]
+    from configs import CFS_400_50_True, CFS_400_50_Alt
+    if data_setting=='both_summary' or data_setting=='oversample_both_summary':
+        vent_features_median = [ i +"_median" for i in obj.vent_features ]
+        if feature_selection_method=="CFS_400_50_True":
+            CFS_400_50_True.remove(pt_col)
+            
+            sorted_features =  vent_features_median + CFS_400_50_True 
+            print(sorted_features)
+        elif feature_selection_method == "CFS_400_50_Alt":
+            CFS_400_50_Alt.remove(pt_col)
+            sorted_features = vent_features_median + CFS_400_50_Alt
+            print(sorted_features)
+    X =X[sorted_features]
+    print(list(X.columns))
+    # X =X[]
     # exit()
     print(X,X.isna().sum())
 
