@@ -1,21 +1,21 @@
 #modify the feature method a t three places
-expt_name = "30h_Ventilator_Waveform" 
-feature_selection_method = "CFS_400_50_Alt"
+expt_name = "MEDIAN_ONLY_OS_12h_both_Ventilator_Waveform_summary_EHR_CFS_400_50_True" 
+feature_selection_method = "CFS_400_50_True"
 use_features='Y'
 if feature_selection_method=='statistical_feature_selection':
     suffix_str=''
 else:
     suffix_str='_10'
 
-data_setting = "vent"
+data_setting = "both_summary"
 """
 Choose from vent, ehr, both, vent_summary, both_summary,oversample_both,oversample_both_summary
 """
 
 no_of_pts = 240  
-prevalence = 0.5
+prevalence = 0.25
 Unbalanced = True
-Downsample_25 = False
+Downsample_25 = True
   
 feature_import_path ='pickled_features/{}/{}_top{}_features.pkl'.format(feature_selection_method,feature_selection_method,suffix_str)
 algorithm = 'RF'
@@ -33,7 +33,7 @@ CFS_300_75_Alt = CFS_300_75_True + ["sf_max","fio2_max","spo2_mean","fio2_min","
 CFS_400_75_True = ["lab_pf_ratio_res_min"]
 CFS_400_75_Alt = CFS_400_75_True + ["sf_min","spo2_mean","lab_pf_ratio_res_min","lab_pf_ratio_res_max","sf97","sf_median","spo2_min","lab_pf_ratio_res_median"]
 
-prefered_columns =CFS_400_50_Alt#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
+prefered_columns =CFS_400_50_True#[]#['Delta BMI', 'ACS_PCT_NO_WORK_NO_SCHL_16_19_ZC', 'Yes Induction', 'POS_DIST_TRAUMA_ZP', 'Y_ECG', 'ACS_PCT_OTH_LANG_ZC']
 
 #without ABG VBG values
 

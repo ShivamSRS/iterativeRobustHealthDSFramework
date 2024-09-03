@@ -8,7 +8,7 @@ from matplotlib import pyplot
 from collections import Counter
 import random
 from numpy import where
-random_state = np.random.RandomState(42)
+random_state = np.random.seed(42)
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import minmax_scale
@@ -104,6 +104,39 @@ label_col,pt_col = label_col,pt_col
 
 import warnings
 warnings.filterwarnings("ignore")
+
+def DownsampleDataset(X,y,test_df,remove_n = 24):
+    remove_n = 24 #int(len((y[y==1]).index)/2)
+    print("#######DOWNSAMPLING#########")
+    print(remove_n,y)
+    # exit()
+    print(remove_n,X.loc[y[y==1].index,:].index,y[y==1].index)
+    drop_indices = np.random.choice(X.loc[y[y==1].index,:].index, remove_n, replace=False)
+    print("indices to xdrop",drop_indices)
+    # exit()
+    X = X.drop(drop_indices).reset_index(drop=True)
+    y = y.drop(drop_indices).reset_index(drop=True)
+    test_df = test_df.drop(drop_indices).reset_index(drop=True)
+    print("after dropping : shapes")
+    print(X.index, y.index)
+    print(X.shape,y.shape,test_df.shape)
+    return X,y,test_df
+
+def append_a_row_to_patient_test_file(patientsInTestSet,data_file,time_window,X):
+    print("########Appending A row to downsampled testpt file#########")
+    if Unbalanced is True:
+        if Downsample_25 is True:
+            new_row={"Splits":data_file,"Window":time_window,"Prevalence_ratio":"Downsampled","Test_patient_IDs":list(X[pt_col]),"Nums_pt_cols":len(list(X[pt_col]))}
+        else:
+            new_row={"Splits":data_file,"Window":time_window,"Prevalence_ratio":"Upsampled","Test_patient_IDs":list(X[pt_col]),"Nums_pt_cols":len(list(X[pt_col]))}
+    else:
+        new_row={"Splits":data_file,"Window":time_window,"Prevalence_ratio":"Balanced","Test_patient_IDs":list(X[pt_col]),"Nums_pt_cols":len(list(X[pt_col]))}
+
+    new_row_df = pd.DataFrame([new_row])
+    # Append the new row to the original dataframe
+    patientsInTestSet = pd.concat([patientsInTestSet, new_row_df], ignore_index=True)
+    patientsInTestSet.to_excel(project_folder+"/testpatients/"+"patientsInTestSet.xlsx", index=False)
+    
 
 validation = 'test'
 from configs import num_splits, expt_name
@@ -220,8 +253,16 @@ for file_num in range(num_files):
         print("Number of 1s:", count_ones)
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
-
+        
+        ventdf_dataset.sort_values(by=pt_col, inplace=True)
+        ventdf_dataset.reset_index(drop=True, inplace=True)
         print("Number of EHR 1s:", count_ones)
+        ventX=ventX.reset_index(drop=True)
+        venty=venty.reset_index(drop=True)
+        mapo_ehr = {idx:pt for idx,pt in zip(X.index,X[pt_col])}
+        mapo_vent = {idx:pt for idx,pt in zip(ventX.index,ventX[pt_col])}
+        print(y-venty,set(X.index),set(ventX.index),mapo_ehr,mapo_vent)
+        # exit()  
         
         y=venty
 
@@ -248,12 +289,13 @@ for file_num in range(num_files):
         print("Number of EHR 1s:", count_ones)
         print("Number o:", len(ventX))
         # print("Number of 0s:", count_zeros)
-        # exit()
+        
         
         y=venty
 
         print(X.columns,len(X),len(y))
-    
+    test_df.sort_values(by=pt_col, inplace=True)
+    test_df.reset_index(drop=True, inplace=True)
     
     # X,y,test_df = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col)
 
@@ -342,9 +384,11 @@ for file_num in range(num_files):
     #     os.makedirs(pickle_folder)
     print(pickle_folder,"\n\n")
     try:
+        print("first try")
         saved_model = joblib.load(pickle_folder + 'classification_model_'+ data_file[:-4].replace('test','train')+'.pkl')
     except:
         try:
+            print("second try")
             if data_setting=='both' or data_setting=='vent':
                 pickle_folder = project_folder + 'algorithm_selection/' + expt_name + '/' + \
                                 algorithm + '/' + "all_features" + \
@@ -355,6 +399,7 @@ for file_num in range(num_files):
             print("##############")
             print("ERROR FOR",data_file)
             print("###############")
+            exit()
             continue
     # if selected_features==[]:
     #         print("no feature was selected, passing whole data instead")
@@ -362,43 +407,67 @@ for file_num in range(num_files):
     # if use_prefered_cols:
     #     selected_features = prefered_columns
     # print(selected_features)
-    if pt_col in X.columns.tolist():
-        X = X.drop([pt_col], axis =1)
-    if label_col in X.columns.tolist():
-        X = X.drop([label_col], axis =1)
+    
     # X = X[selected_features]#[list(X.columns[:51]) + list(selected_features)]#[selected_features]
 
     print("######",X.shape,type(X),test_df.shape,X.columns)
     # exit()
-    # if Unbalanced is True:
-    #     if Downsample_25 is True:
-    #         print(len(y),len((y[y==1]).index),len((y[y==1]).index)/2,(y[y==1]).index)
-    #         remove_n = 24 #int(len((y[y==1]).index)/2)
-    #         print(remove_n,X.loc[y[y==1].index,:].index,y[y==1].index)
-    #         drop_indices = np.random.choice(X.loc[y[y==1].index,:].index, remove_n, replace=False)
-    #         X = X.drop(drop_indices).reset_index(drop=True)
-    #         y = y.drop(drop_indices).reset_index(drop=True)
-    #         test_df = test_df.drop(drop_indices).reset_index(drop=True)
-    #         print(X.index, y.index)
-    #         print(X.shape,y.shape,test_df.shape)
-    #     else:
-    #         counter = Counter(y)
-    #         print(counter)
-    #         print(X.shape,y.shape,test_df.shape)
-    #         # transform the dataset
-    #         oversample = SMOTE(sampling_strategy={0:108,1:36})
-    #         X, y = oversample.fit_resample(X, y)
-    #         # summarize the new class distribution
-    #         counter = Counter(y)
-    #         print(counter)
-    #         print(X.shape,y.shape,test_df.shape)
-    #         # scatter plot of examples by class label
-    #         # for label, _ in counter.items():
-    #         #     row_ix = where(y == label)[0]
-    #         #     pyplot.scatter(X[row_ix, 0], X[row_ix, 1], label=str(label))
-    #         # pyplot.legend()
-    #         # pyplot.show()
+    if Unbalanced is True:
+        if Downsample_25 is True:
+            if os.path.exists(project_folder+"/testpatients/"+"patientsInTestSet.xlsx") is False:
+                X,y,test_df=DownsampleDataset(X,y,test_df,remove_n = 24)
+            else:
+                patientsInTestSet = pd.read_excel(project_folder+"/testpatients/"+"patientsInTestSet.xlsx")
+                if len(patientsInTestSet[patientsInTestSet["Splits"]==data_file])==0:
+                    X,y,test_df=DownsampleDataset(X,y,test_df,remove_n = 24)
+        else:
+            counter = Counter(y)
+            print(counter)
+            print(X.shape,y.shape,test_df.shape)
+            # transform the dataset
+            oversample = SMOTE(sampling_strategy={0:108,1:36},random_state=42)
+            X, y = oversample.fit_resample(X, y)
+            # summarize the new class distribution
+            counter = Counter(y)
+            print(counter)
+            print(X.shape,y.shape,test_df.shape)
+           
     
+        if os.path.exists(project_folder+"/testpatients/"+"patientsInTestSet.xlsx") is False:
+            patientsInTestSet = pd.DataFrame(columns=["Splits","Window","Prevalence_ratio","Test_patient_IDs","Nums_pt_cols"])
+            append_a_row_to_patient_test_file(patientsInTestSet,data_file,time_window,X)
+        else:
+            if Unbalanced is True:
+                if Downsample_25 is True:
+                    patientsInTestSet = pd.read_excel(project_folder+"/testpatients/"+"patientsInTestSet.xlsx")
+                    # Step 1: For each filename, filter Test_patient_ids
+                    if len(patientsInTestSet[patientsInTestSet["Splits"]==data_file])==0:
+                        append_a_row_to_patient_test_file(patientsInTestSet,data_file,time_window,X)
+                    else:
+                        filtered_indices = []
+                        
+                        patientsInTestSet['Test_patient_IDs'] = patientsInTestSet['Test_patient_IDs'].apply(ast.literal_eval)
+                        lisst_ = patientsInTestSet[patientsInTestSet['Splits'] == data_file]['Test_patient_IDs'].values[0]  # Assuming there's only one row per filename
+                        
+                        # Step 2: Filter X based on whether the patient IDs are in the Test_patient_ids
+                        print(lisst_,type(lisst_))
+                        indices_to_keep =  X[X[pt_col].isin(lisst_)].index
+
+                        # Store the indices of the patient IDs to keep
+                        filtered_indices.extend(indices_to_keep)
+
+                        # Step 4: Drop indices in test_x and y that are not in filtered_indices
+                        X = X.loc[filtered_indices]
+                        test_df = test_df.loc[filtered_indices]
+                        y = y.loc[filtered_indices]     
+    print("length of y and X and test df",len(y),len(X),len(test_df))   
+            
+
+
+    
+    print("patient columns",X[pt_col])
+    print("patient columns from test df",test_df[pt_col])
+    print("y labels",y)
     # exit()
     print(saved_model.named_steps)
     cols = X.columns.tolist()
@@ -420,12 +489,41 @@ for file_num in range(num_files):
             print(sorted_features)
 
         X=X[sorted_features]
+    if pt_col in X.columns.tolist():
+        X = X.drop([pt_col], axis =1)
+    if label_col in X.columns.tolist():
+        X = X.drop([label_col], axis =1)
     print(X.columns)
     Y_pred = saved_model.predict(X)
     print(Y_pred)
+    
     # exit()
     probas_=saved_model.predict_proba(X)
     
+    
+    patient_probas = {patient_id: prob for patient_id, prob in zip(test_df[pt_col], probas_)}
+    # print(test_df.loc[0])
+    # print(patient_probas)
+    # exit()
+    
+    if os.path.exists('patient_probabilities.npz'):
+        # Load the existing data
+        probadatadict = np.load('patient_probabilities.npz', allow_pickle=True)
+        patient_probabilities = {filename: dict(probadatadict[filename].item()) for filename in probadatadict.files}
+    else:
+        # Initialize an empty dictionary
+        patient_probabilities = {}
+    if data_file not in patient_probabilities:
+        patient_probabilities[data_file] = {}
+
+    # Step 2: Append the patient probabilities to the dictionary
+    patient_probabilities[data_file] = patient_probas
+
+    # Step 3: Save the updated structure
+    np.savez(results_path+'/patient_probabilities.npz', **{k: v for k, v in patient_probabilities.items()})
+    # print(patient_probabilities)
+    # exit()
+
     if algorithm=='RF' or algorithm=='XGB':
         feat_importances = pd.Series(saved_model['classification_model'].feature_importances_, index=X.columns)
         
