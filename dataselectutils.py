@@ -474,7 +474,7 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
     print(data_file)
 
     print(data_file,"FOld info file is",os.path.join(project_folder,fold_information_file))
-
+    # exit()
     fold_df = pd.read_csv(os.path.join(project_folder,fold_information_file)) #reading file specifying which pigs belong to which splits
     print(file_num+1,fold_df[fold_df['filename']==data_file.split("/")[-1]],sep="\n\n")
     folds_for_current_split = fold_df[fold_df['filename']==data_file.split("/")[-1]]
@@ -543,7 +543,7 @@ def get_dataset(data_file,file_num,label_col,pt_col,give_pt=True):
         print(len(df))
         df = df[df[pt_col].isin(train_pig_list)][:]
         print(len(df))
-        # # print(X,y)
+        # print(X,y)
         # exit()
 
     if 'std_beats_mean_cvp' in X.columns.tolist():
@@ -579,8 +579,8 @@ def get_test_dataset(data_file,label_col,pt_col,give_pt=False):
 
     
     df = pd.read_csv(data_file, index_col= None)
-
-
+    #this was changed on 6th sepgtember 
+    df = df.sample(frac=1).reset_index(drop=True)
 
     if 'ppv' in data_file.lower():
         X = df[df.columns[0:53]]

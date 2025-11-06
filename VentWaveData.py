@@ -315,8 +315,8 @@ class VentData:
                 
                 for idx,patientID in enumerate(fold):
                     # print(idx,patientID)
-                    train_filepaths.append(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
-                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(patientID),"patientid_{}_vwd_summary.csv".format(patientID)))
+                    train_filepaths.append(os.path.join(ventDataFiles_median,str(int(patientID)),"patientid_{}_vwd_summary.csv".format(int(patientID))))
+                    tempFile = pd.read_csv(os.path.join(ventDataFiles_median,str(int(patientID)),"patientid_{}_vwd_summary.csv".format(int(patientID))))
                     
                     if time_window =='' or time_window=='48h':
                         # print("time iwndo is 48h")

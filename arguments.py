@@ -1,12 +1,11 @@
 data_files = ['ehr12h_summary_imputed.csv']
-project_folder = '/data0/ehrdata/'#'/data0/ehrdata2/'
+project_folder = '/data0/May12/ehrdata2/'#/data0/ehrdata/'
 time_window = '12h'
 data_folder = project_folder + 'datafile/' + time_window
-train_folder = project_folder + 'train/' + time_window
+train_folder ="/data0/May12/ehrdata2/upsampled/ehr/" + time_window+"/"#project_folder + 'train/' + time_window + time_window
 test_folder = project_folder + 'test/' +time_window
 fold_information_flag = True
-fold_information_file = 'fold_information.csv'#'Downsample 25 fold_information.csv'#'fold_information.csv'
-#'Downsample 25 fold_information.csv'
+fold_information_file ='fold_information_upsampled.csv'
 # pickle_folder
 label_col = 'ards_flag'
 pt_col = 'deidentified_study_id'

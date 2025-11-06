@@ -142,39 +142,12 @@ hyperparameter_catalog = {
 from scipy.stats import ks_2samp
 
 
-
 rp_list = [['n','n'], ['y', 'n'], ['n', 'y']]
 
-
-# data_folder = 'bootstraps_sv2/'
 
 filtered_col_list = []
 fold_perf = []
 only_comm = 'n'
-comm_feats_90 = ['median_dia_area',
- 'median_pulse_pres',
- 'median_sys_dec_area',
- 'median_t_dia',
- 'median_t_sys',
- 'std_avg_dia',
- 'std_dias_pres',
- 'std_dic_pres',
- 'std_pp_area']
-comm_feats_50 = ['std_dias_pres',
- 'std_sys_dec_area_nor',
- 'std_sys_pres',
- 'std_sys_area_nor',
- 'std_avg_dia',
- 'std_avg_sys',
- 'std_sys_rise_area_nor',
- 'std_avg_sys_rise',
- 'median_sys_dec_area',
- 'std_dic_pres',
- 'std_pp_area',
- 'std_pp_area_nor']
-
-
-
 
 
 from configs import num_splits,data_setting
@@ -208,7 +181,7 @@ hyperparameter_grid = hyperparameter_catalog[algorithm]
 
 
 file_list = [f for f in listdir(train_folder) if isfile(join(train_folder, f))]
-# print(file_list,train_folder)
+print(file_list,train_folder,"\n")
 # exit()
 filtered_col_list = []
 fold_perf = []
@@ -263,6 +236,7 @@ for file_num in range(num_files):
     # print()
     # exit()
     data_file = file_list[file_num]
+    
     print('Processing file ' + data_file)
     if not os.path.isdir(All_file_pickle_folder):
         print(All_file_pickle_folder)
@@ -278,62 +252,20 @@ for file_num in range(num_files):
     import numpy as np
     from sklearn.metrics import roc_auc_score
 
-    def make_patient_level_roc_auc_scorer(patient_ids):
-        """
-        Creates a custom scorer that computes ROC AUC on the patient level based on majority vote.
-        
-        Args:
-        patient_ids (array-like): Array of patient IDs corresponding to each row in the input data.
-        
-        Returns:
-        scorer (callable): Custom scorer compatible with scikit-learn's make_scorer function.
-        """
-        def patient_level_roc_auc(y_true, y_pred):
-            # Convert predictions to binary labels based on a threshold (e.g., 0.5 for probabilities)
-            print(y_pred,"inside roc_auc y true y pred",y_pred.shape,patient_ids)
-            
-            y_pred_labels = (y_pred >= 0.5).astype(int)
-            
-            # Aggregate predictions by patient ID, finding the majority label for each patient
-            patient_predictions = {}
-            for patient_id, prediction in zip(patient_ids, y_pred_labels):
-                print(patient_id, prediction)
-                if patient_id not in patient_predictions:
-                    patient_predictions[patient_id] = []
-                patient_predictions[patient_id].append(prediction)
-            
-            patient_majority_label = {patient_id: np.argmax(np.bincount(labels))
-                                    for patient_id, labels in patient_predictions.items()}
-            
-            # Aggregate true labels by patient ID, assuming the true label is consistent for all rows of a patient
-            patient_true_label = {}
-            # exit()
-            for patient_id, true_label in zip(patient_ids, y_true):
-                patient_true_label[patient_id] = true_label
-            
-            # Prepare lists of aggregated true labels and predicted labels for ROC AUC calculation
-            y_true_agg = [patient_true_label[pid] for pid in patient_predictions.keys()]
-            y_pred_agg = [patient_majority_label[pid] for pid in patient_predictions.keys()]
-            
-            # Calculate and return the ROC AUC score
-            return roc_auc_score(y_true_agg, y_pred_agg)
-        
-        return patient_level_roc_auc
-
     
     print("This is the modality setting",data_setting)
         
     if data_setting=='ehr':
         
-        X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(train_folder,data_file),file_num,label_col,pt_col)
         
-        print(test_patient_ids)
+        print(test_patient_ids,"test patients")
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
 
         print("Number of 1s:", count_ones)
         # exit()
-        print(patient_ids,set(patient_ids))
+        # print(patient_ids,set(patient_ids))
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
@@ -381,6 +313,81 @@ for file_num in range(num_files):
         scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
                'specificity': make_scorer(recall_score,pos_label=0),\
                'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+    
+    elif data_setting=="ehr_oversample2":
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(train_folder,data_file),file_num,label_col,pt_col,give_pt=True)
+        
+        
+        patient_ids = df_dataset[pt_col].values
+
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+        print(X.columns)
+        print("Number of 1s:", count_ones)
+        print(len(y),len(X))
+        print(X.head())
+        # X.to_csv("48h_summary_vent_features_{}.csv".format(int(data_file[-data_file[::-1].find("_"):data_file.find(".")])))
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+            'specificity': make_scorer(recall_score,pos_label=0),\
+            'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+    
+    elif data_setting=='vent_summary_oversample2':
+        
+        obj = VentData(ventDataFolder)
+        ventX,venty,ventdf_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(train_folder,data_file),file_num,label_col,pt_col,give_pt=True)
+        # ventdf_dataset[pt_col] = ventdf_dataset[pt_col].astype(int)
+        # ventdf_dataset.sort_values(by=pt_col, inplace=True)
+        # ventdf_dataset.reset_index(drop=True, inplace=True)
+        
+        # columns_to_include = [col for col in ventdf_dataset.columns if col not in [label_col]]
+        # ventX,venty = ventdf_dataset.loc[:,columns_to_include],ventdf_dataset[label_col] 
+        X=ventX
+        y=venty
+        df_dataset = ventdf_dataset
+        
+        # X,y,df_dataset, cv,train_pigs =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,median_only=True)
+        patient_ids = df_dataset[pt_col].values
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+        print(X.columns)
+        print("Number of 1s:", count_ones)
+        print(len(y),len(X))
+        print(X.head())
+        # X.to_csv("48h_summary_vent_features_{}.csv".format(int(data_file[-data_file[::-1].find("_"):data_file.find(".")])))
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+            'specificity': make_scorer(recall_score,pos_label=0),\
+            'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
+        
+    elif data_setting=='both_summary_oversample2':
+        
+        obj = VentData(ventDataFolder)
+        X,y,df_dataset, cv,train_patient_ids,test_patient_ids  = get_dataset(os.path.join(train_folder,data_file),file_num,label_col,pt_col,give_pt=True)
+        
+        
+        patient_ids = df_dataset[pt_col].values
+
+        count_ones = y.value_counts()
+        # count_zeros = y.count(0)
+        print(X.columns)
+        print("Number of 1s:", count_ones)
+        print(len(y),len(X))
+        print(X.head())
+        # X.to_csv("48h_summary_vent_features_{}.csv".format(int(data_file[-data_file[::-1].find("_"):data_file.find(".")])))
+        # exit()
+
+        # print("patient ids",patient_ids,sep="#####$$$$$#####")
+        #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
+        scoring = {'roc_auc':make_scorer(roc_auc_score, needs_proba= True), 'precision': 'precision', 'recall': 'recall',\
+            'specificity': make_scorer(recall_score,pos_label=0),\
+            'accuracy': 'accuracy','prc_auc': make_scorer(average_precision_score,needs_proba=True),'brier_score':make_scorer(brier_score_loss,needs_proba=True)}
 
     elif data_setting=='both_summary':
         obj = VentData(ventDataFolder)
@@ -439,7 +446,7 @@ for file_num in range(num_files):
         
         ventdf_dataset.sort_values(by=pt_col, inplace=True)
         ventdf_dataset.reset_index(drop=True, inplace=True)
-        columns_to_include = [col for col in ventdf_dataset.columns if col not in [label_col]]
+        # columns_to_include = [col for col in ventdf_dataset.columns if col not in [label_col]]
         ventX,venty = ventdf_dataset.loc[:,columns_to_include],ventdf_dataset[label_col] 
 
         print(y.value_counts(),venty.value_counts(),(y-venty).value_counts())
@@ -488,7 +495,7 @@ for file_num in range(num_files):
     
 
     print()
-    if data_setting=='ehr' or data_setting=='both' or data_setting=='both_summary' or data_setting=="oversample_both_summary":
+    if data_setting=='ehr' or data_setting=='ehr_oversample2' or data_setting=='both' or data_setting=='both_summary' or data_setting=="oversample_both_summary":
         print("inside inmport featu")
         if import_feature_list == 'Y':
 
@@ -509,6 +516,8 @@ for file_num in range(num_files):
             
             if use_prefered_cols:
                 selected_features = prefered_columns
+                if pt_col not in selected_features:
+                    selected_features.append(pt_col)
             print("selected features are ",len(selected_features),selected_features)
             
             if data_setting=="both" or data_setting=='both_summary' or data_setting=="oversample_both_summary":
@@ -578,15 +587,23 @@ for file_num in range(num_files):
                         print(len(fold_x_res),len(train_pt_data[train_pt_data[label_col]==1]))
                         # exit()
                         fold_y_res = fold_y_res.rename(label_col)
-                        print(fold_x_res.isna().sum(),"\n\n",fold_y_res.isna().sum(),type(fold_y_res),fold_y_res)
+                        # print(fold_x_res.isna().sum(),"\n\n",fold_y_res.isna().sum(),type(fold_y_res),fold_y_res)
                         
                         # exit()
+                        print("test prevalence ratio before oversampling",len(test_pt_data[test_pt_data[label_col]==1]),len(test_pt_data[test_pt_data[label_col]==0]),test_pt_data[label_col].value_counts())
+                        if len(test_pt_data[test_pt_data[label_col]==0]) < 3*len(test_pt_data[test_pt_data[label_col]==1]):
+                            sm2 = SMOTE(sampling_strategy={0:3*len(test_pt_data[test_pt_data[label_col]==1]),1:len(test_pt_data[test_pt_data[label_col]==1])})
+                            test_pt_data_fold_x_res, test_pt_data_fold_y_res = sm2.fit_resample(test_pt_data[selcted_cols], test_pt_data[label_col])
+                        else:
+                            print("test prevalence ratios already 25%")
+                            test_pt_data_fold_x_res, test_pt_data_fold_y_res = test_pt_data[selcted_cols], test_pt_data[label_col]
                         
                         
-                        y_new.extend([fold_y_res, test_pt_data[label_col]])
+                        y_new.extend([fold_y_res, test_pt_data_fold_y_res])
+                        print(test_pt_data_fold_y_res.value_counts(),fold_y_res.value_counts())
                         
                         
-                        x_new.extend([fold_x_res, test_pt_data])
+                        x_new.extend([fold_x_res, test_pt_data_fold_x_res])
                         print(fold_idx)
                     print(len(y_new),len(x_new))
                     # exit()
@@ -617,7 +634,7 @@ for file_num in range(num_files):
                             combined_dfy_list.append(fold_y)
                     
                         
-
+                    print(combined_dfx_list)
                     X, y = pd.concat(combined_dfx_list, ignore_index=True), pd.concat(combined_dfy_list, ignore_index=True)
                     # print(y,X)
                     print(X.isna().sum())
@@ -648,7 +665,11 @@ for file_num in range(num_files):
     # exit()
     
     if algorithm_no == 1:
-        classification_model=RandomForestClassifier(random_state=1)
+        classification_model = RandomForestClassifier(
+            random_state=1,
+            # n_jobs=-1,          # use all cores *inside* each RF fit
+            # verbose=0           # optional: see progress on large forests
+        )
     elif algorithm_no == 2:
         classification_model=GradientBoostingClassifier(random_state=1)
     elif algorithm_no == 3:
@@ -656,15 +677,19 @@ for file_num in range(num_files):
     elif algorithm_no == 4:
         classification_model=SVC(probability=True, random_state=1)
     
+    from joblib import Memory
+    from sklearn.pipeline import Pipeline
+
+    # mem = Memory(location="skl_cache", verbose=0)
+    noimb_pipeline = Pipeline([('classification_model', classification_model)])#, memory=mem)
     
-    noimb_pipeline = Pipeline([('classification_model', classification_model)])
     
-    
-    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =0,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
+    clf = GridSearchCV(noimb_pipeline, param_grid= hyperparameters, verbose =1,cv=inner_cv, scoring= scoring, refit = 'roc_auc', n_jobs=-1,error_score="raise",return_train_score=True)
     import time
     # startfit = time.time()
     # print("This is ",X,y,sep="\n\n")
-    print(list(X.columns),len(X),len(y))
+    print(list(X.columns),len(X),len(y),list(X[pt_col]),cv[0][0])
+    # exit()
 
     if data_setting=='both' or data_setting=='both_summary':
         X = X.drop(pt_col,axis=1)
@@ -677,24 +702,45 @@ for file_num in range(num_files):
     
     # X =X[['mean_flow_from_pef_median', 'inst_RR_median', 'minF_to_zero_median', 'pef_+0.16_to_zero_median', 'iTime_median', 'eTime_median', 'I:E ratio_median', 'dyn_compliance_median', 'tve:tvi ratio_median', 'stat_compliance_median', 'resist_median', 'sf_median', 'lab_pf_ratio_res_median', 'lab_pf_ratio_res_min', 'sf97']]
     from configs import CFS_400_50_True, CFS_400_50_Alt
-    if data_setting=='both_summary' or data_setting=='oversample_both_summary':
+    if data_setting=='both_summary' or data_setting=='oversample_both_summary' or data_setting=='both_summary_oversample2' :
         vent_features_median = [ i +"_median" for i in obj.vent_features ]
         if feature_selection_method=="CFS_400_50_True":
-            CFS_400_50_True.remove(pt_col)
+            if pt_col in CFS_400_50_True:
+                CFS_400_50_True.remove(pt_col)
             
             sorted_features =  vent_features_median + CFS_400_50_True 
             print(sorted_features)
         elif feature_selection_method == "CFS_400_50_Alt":
-            CFS_400_50_Alt.remove(pt_col)
+            if pt_col in CFS_400_50_Alt:
+                CFS_400_50_Alt.remove(pt_col)
             sorted_features = vent_features_median + CFS_400_50_Alt
             print(sorted_features)
-    X =X[sorted_features]
-    print(list(X.columns))
+        X =X[sorted_features]
+        selected_features=sorted_features
+    print(list(X.columns),X,y)
+    # exit()
+    if data_setting=='vent_summary_oversample2' or data_setting=='vent_summary':
+        vent_features_median = [ i +"_median" for i in obj.vent_features ]
+        sorted_features =  vent_features_median
+        X =X[sorted_features]
+        selected_features=sorted_features
+    print(list(X.columns),X,y)
     # X =X[]
     # exit()
-    print(X,X.isna().sum())
+    print(X,X.isna().sum(),X.shape,y.shape)
+    print(y.isna().sum(),X.index,y.index)
 
-    clf.fit(X, y)
+    print(cv[0],len(cv[0]),len(cv[0][0]),len(cv[0][1]), np.intersect1d(cv[0][0], cv[0][1]))
+    # train_idx, test_idx = cv[0][0],cv[0][1]  # Get the first fold
+    # X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+    # y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+    # print(f"Train shape: {X_train.shape}, Test shape: {X_test.shape}")
+
+    print("start training")
+    X_np = X.to_numpy(dtype=np.float32, copy=False)
+    y_np = y.to_numpy()
+    
+    clf.fit(X_np, y_np)
     # exit()
     
     # endfit = time.time()
@@ -741,7 +787,9 @@ for file_num in range(num_files):
     # print(results_df.columns)
     # results_df.to_excel("prelimresults.xlsx")
     # exit()
-    model_to_choose =clf.best_estimator_ 
+    model_to_choose = clf.best_estimator_     # <-- grab it here
+
+     
     
     model_file = "classification_model_"+file_list[file_num][:-4]+".pkl"
     
@@ -752,6 +800,22 @@ for file_num in range(num_files):
     fullmodels_cv=pd.concat([fullmodels_cv,temp],ignore_index=True)
     fullmodels_cv.to_excel(temppath+"/fullbestmodels_cv.xlsx")
     # exit()
+    # 1) persist the exact feature list
+    featlist_path = os.path.join(All_file_pickle_folder, model_file + '.featlist.txt')
+    with open(featlist_path, 'w') as fl:
+        for feat in selected_features:
+            fl.write(feat + '\n')
+
+    # 2) stamp the inner classifier
+    inner_clf = model_to_choose.named_steps['classification_model']
+    # 0) make sure the ID column isn't in your final list
+    if pt_col in selected_features:
+        selected_features.remove(pt_col)
+    
+    inner_clf.feature_names_in_ = np.array(selected_features, dtype=object)
+    assert pt_col not in inner_clf.feature_names_in_, "Oops—ID still in feature list!"
+    print("Saving features",inner_clf.feature_names_in_,selected_features,"at",featlist_path)
+    # finally save
     joblib.dump(model_to_choose, All_file_pickle_folder+model_file)
     print('')
     processing_time = (round(time.time() - start_time, 2))

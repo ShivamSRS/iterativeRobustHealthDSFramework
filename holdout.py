@@ -165,6 +165,7 @@ if not os.path.isdir(results_path):
             os.makedirs(results_path)
         
 # exit()
+print('results_path is',results_path)
 file_list = [f for f in listdir(test_folder) if isfile(join(test_folder, f))]
 
 filtered_col_list = []
@@ -206,15 +207,18 @@ for file_num in range(num_files):
 
     if data_setting=='ehr':
         
-        X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+        # X,y,df_dataset, cv,train_patient_ids,test_patient_ids = get_dataset(os.path.join(project_folder,train_or_test,time_window,data_file),file_num,label_col,pt_col)
+        X,y,test_df  = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col,give_pt=True)
         
-        print(test_patient_ids)
+        # test_df.sort_values(by=pt_col, inplace=True)
+        # test_df.reset_index(drop=True, inplace=True)
+        # exit
+        print(X[pt_col],test_df[pt_col])
         count_ones = y.value_counts()
         # count_zeros = y.count(0)
 
         print("Number of 1s:", count_ones)
-        # exit()
-        print(patient_ids,set(patient_ids))
+        
     
     elif data_setting=='vent':
         obj = VentData(ventDataFolder)
@@ -230,7 +234,41 @@ for file_num in range(num_files):
         # print("patient ids",patient_ids,sep="#####$$$$$#####")
         #'patient_level_roc_auc_scorer' : make_scorer(make_patient_level_roc_auc_scorer(patient_ids), needs_proba=True),
 
-    elif data_setting=='both_summary' or data_setting=='oversample_both_summary':
+    elif data_setting=='vent_summary':
+        
+        obj = VentData(ventDataFolder)
+        
+        # print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        ventX,venty,ventdf_dataset, test_patients  =obj.get_train_test_file_summary(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),ventDataFiles_median,time_window,train=False,give_pt=True,median_only=True)
+        print(ventX.columns)
+        # exit()
+        # print(data_file,int(data_file[-data_file[::-1].find("_"):data_file.find(".")]),os.path.join(project_folder,train_or_test,time_window,data_file))
+        print(int(data_file[-data_file[::-1].find("_"):data_file.find(".")]))
+        # exit() 
+        patient_ids = ventdf_dataset[pt_col].values
+        print("patient ids",patient_ids,sep="#####$$$$$#####")
+        # Counting 1s and 0s
+        count_ones = venty.value_counts()
+        
+        ventdf_dataset.sort_values(by=pt_col, inplace=True)
+        ventdf_dataset.reset_index(drop=True, inplace=True)
+        print("Number of EHR 1s:", count_ones)
+        ventX=ventX.reset_index(drop=True)
+        venty=venty.reset_index(drop=True)
+        
+        mapo_vent = {idx:pt for idx,pt in zip(ventX.index,ventX[pt_col])}
+        print(venty,set(ventX.index),mapo_vent)
+        # exit()  
+        
+        y=venty
+        X=ventX
+        test_df = ventdf_dataset
+
+        print(X.columns,len(X),len(y))
+        
+    #THIS IS A PATCH I JUST ADDED IF THERE IS A PROBLEM ITS MISTLY HERE
+    #JUST ADDING both_summary_oversample2 TO ELIF AND SEE IF IT WORKS YOLO
+    elif data_setting=='both_summary' or data_setting=='oversample_both_summary' :
         obj = VentData(ventDataFolder)
         
         X,y,test_df  = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col,give_pt=True)
@@ -265,6 +303,9 @@ for file_num in range(num_files):
         # exit()  
         
         y=venty
+        test_df.sort_values(by=pt_col, inplace=True)
+        test_df.reset_index(drop=True, inplace=True)
+
 
         print(X.columns,len(X),len(y))
     elif data_setting=='both':
@@ -294,8 +335,7 @@ for file_num in range(num_files):
         y=venty
 
         print(X.columns,len(X),len(y))
-    test_df.sort_values(by=pt_col, inplace=True)
-    test_df.reset_index(drop=True, inplace=True)
+    
     
     # X,y,test_df = get_test_dataset(os.path.join(test_folder,data_file),label_col,pt_col)
 
@@ -339,6 +379,8 @@ for file_num in range(num_files):
             
             if use_prefered_cols:
                 selected_features = prefered_columns
+                if pt_col not in selected_features:
+                    selected_features.append(pt_col)
             print("selected features are ",len(selected_features),selected_features)
             
             if data_setting=="both" or data_setting=='both_summary' or data_setting=="oversample_both_summary":
@@ -368,6 +410,7 @@ for file_num in range(num_files):
         column_list.append(X.columns.tolist())
         # print(column_list)
         filtered_col_list.append(X.columns.tolist())
+    # exit()
 
     
     
@@ -389,7 +432,7 @@ for file_num in range(num_files):
     except:
         try:
             print("second try")
-            if data_setting=='both' or data_setting=='vent':
+            if data_setting=='both' or data_setting=='vent' or data_setting=='both_summary':
                 pickle_folder = project_folder + 'algorithm_selection/' + expt_name + '/' + \
                                 algorithm + '/' + "all_features" + \
                                 '/model_' + data_file[:-4].replace('test','train') + '/'
@@ -401,6 +444,7 @@ for file_num in range(num_files):
             print("###############")
             exit()
             continue
+    
     # if selected_features==[]:
     #         print("no feature was selected, passing whole data instead")
     #         selected_features = X.columns
@@ -442,15 +486,18 @@ for file_num in range(num_files):
                     patientsInTestSet = pd.read_excel(project_folder+"/testpatients/"+"patientsInTestSet.xlsx")
                     # Step 1: For each filename, filter Test_patient_ids
                     if len(patientsInTestSet[patientsInTestSet["Splits"]==data_file])==0:
+                        print("here")
                         append_a_row_to_patient_test_file(patientsInTestSet,data_file,time_window,X)
                     else:
                         filtered_indices = []
+                        print("there")
                         
                         patientsInTestSet['Test_patient_IDs'] = patientsInTestSet['Test_patient_IDs'].apply(ast.literal_eval)
                         lisst_ = patientsInTestSet[patientsInTestSet['Splits'] == data_file]['Test_patient_IDs'].values[0]  # Assuming there's only one row per filename
                         
                         # Step 2: Filter X based on whether the patient IDs are in the Test_patient_ids
                         print(lisst_,type(lisst_))
+                        print(X.columns)
                         indices_to_keep =  X[X[pt_col].isin(lisst_)].index
 
                         # Store the indices of the patient IDs to keep
@@ -460,7 +507,9 @@ for file_num in range(num_files):
                         X = X.loc[filtered_indices]
                         test_df = test_df.loc[filtered_indices]
                         y = y.loc[filtered_indices]     
-    print("length of y and X and test df",len(y),len(X),len(test_df))   
+    print("length of y and X and test df",len(y),len(X),len(test_df),test_df[label_col].value_counts())
+    # exit()   
+    assert all(X.index == y.index) and all(X.index == test_df.index)
             
 
 
@@ -479,21 +528,67 @@ for file_num in range(num_files):
     if data_setting=='both_summary' or data_setting=='oversample_both_summary':
         vent_features_median = [ i +"_median" for i in obj.vent_features ]
         if feature_selection_method=="CFS_400_50_True":
-            CFS_400_50_True.remove(pt_col)
+            print("feature selection is",CFS_400_50_True)
+            if pt_col in CFS_400_50_True:CFS_400_50_True.remove(pt_col)
             
             sorted_features =  vent_features_median + CFS_400_50_True 
             print(sorted_features)
         elif feature_selection_method == "CFS_400_50_Alt":
-            CFS_400_50_Alt.remove(pt_col)
+            
+            if pt_col in CFS_400_50_Alt: CFS_400_50_Alt.remove(pt_col)
+            print("feature selection is",CFS_400_50_Alt)
             sorted_features = vent_features_median + CFS_400_50_Alt
-            print(sorted_features)
-
-        X=X[sorted_features]
+            print("length of CFS 400 50 Alt is",len(CFS_400_50_Alt))
+            print("length of Vent features is",len(vent_features_median))
+            print(sorted_features,vent_features_median,"meow\n",len(X.columns),len(sorted_features))
+            # print("\n\n\n\n",sorted_features,X.columns,sorted_features-X.columns,sep="\n\n")
+        sorted_features = list(set(sorted_features))  # This will remove any duplicates
+        X = X.loc[:, sorted_features]  # Explicit column selection using loc
+        print("\n\n\n\n",sorted_features,X.columns,len(list(X.columns)),len(sorted_features),sep="\n\n")
+    # exit()
     if pt_col in X.columns.tolist():
         X = X.drop([pt_col], axis =1)
     if label_col in X.columns.tolist():
         X = X.drop([label_col], axis =1)
     print(X.columns)
+    print(y.value_counts())
+    print(test_df[label_col].value_counts())
+    # exit()
+    # drop any leftover ID or label columns
+    featlist_path = os.path.join(
+        pickle_folder,
+        'classification_model_' + data_file[:-4].replace('test','train') + '.pkl.featlist.txt'
+    )
+    with open(featlist_path, 'r') as fl:
+        expected_features = [ln.strip() for ln in fl]
+    expected_features = [
+        f for f in expected_features
+        if f not in (pt_col, label_col)
+    ]
+        
+    if pt_col in X.columns:     
+        X = X.drop(pt_col, axis=1)
+        
+    if label_col in X.columns:  
+        X = X.drop(label_col, axis=1)
+        
+
+    # now enforce exactly the same features & order:
+    X = X.loc[:, expected_features]
+    # The inner estimator is under the pipeline step “classification_model”
+    inner_rf = saved_model.named_steps['classification_model']
+
+    # Make sure the RF’s recorded feature_names_in_ matches your expectation:
+    if not np.array_equal(inner_rf.feature_names_in_, np.array(expected_features, dtype=object)):
+        missing = set(expected_features)  - set(inner_rf.feature_names_in_)
+        extra   = set(inner_rf.feature_names_in_) - set(expected_features)
+        raise RuntimeError(
+            f"Feature‐mismatch:\n"
+            f"  missing in model: {missing}\n"
+            f"  extra in model:   {extra}"
+        )
+
+    
     Y_pred = saved_model.predict(X)
     print(Y_pred)
     
@@ -505,23 +600,32 @@ for file_num in range(num_files):
     # print(test_df.loc[0])
     # print(patient_probas)
     # exit()
-    
-    if os.path.exists('patient_probabilities.npz'):
+
+    # Step 1: Load existing patient_probabilities or initialize an empty dictionary
+    if os.path.exists(results_path+'/patient_probabilities.npz'):
         # Load the existing data
-        probadatadict = np.load('patient_probabilities.npz', allow_pickle=True)
+        probadatadict = np.load(results_path+'/patient_probabilities.npz', allow_pickle=True)
+        # Convert .npz structure into a dictionary of dictionaries
         patient_probabilities = {filename: dict(probadatadict[filename].item()) for filename in probadatadict.files}
     else:
-        # Initialize an empty dictionary
+        # Initialize an empty dictionary if the file doesn't exist
         patient_probabilities = {}
-    if data_file not in patient_probabilities:
-        patient_probabilities[data_file] = {}
 
-    # Step 2: Append the patient probabilities to the dictionary
-    patient_probabilities[data_file] = patient_probas
+    # Step 2: Merge probabilities for the current test file
+    if data_file in patient_probabilities:
+        # If the test file already exists, update probabilities (merge patient data)
+        patient_probabilities[data_file].update(patient_probas)
+    else:
+        # If the test file is new, add it as a new key
+        patient_probabilities[data_file] = patient_probas
 
-    # Step 3: Save the updated structure
+    # Step 3: Save the updated patient_probabilities dictionary back to the .npz file
+    # Convert patient_probabilities back to a structure suitable for saving in .npz format
     np.savez(results_path+'/patient_probabilities.npz', **{k: v for k, v in patient_probabilities.items()})
-    # print(patient_probabilities)
+
+
+    
+    
     # exit()
 
     if algorithm=='RF' or algorithm=='XGB':
